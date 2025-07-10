@@ -18,7 +18,7 @@ services:
     volumes:
       - .:/app
     working_dir: /app
-    command: pnpm run start:dev
+    command: ["sh", "./wait-for-it.sh", "postgres", "5432", "sh", "-c", "pnpm prisma migrate deploy && pnpm run start:dev"]
     depends_on:
       - postgres
     environment:
