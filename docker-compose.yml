@@ -12,13 +12,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
   nestjs:
-    build: .
     ports:
       - "3000:3000"
     volumes:
       - .:/app
     working_dir: /app
-    command: ["sh", "./wait-for-it.sh", "postgres", "5432", "sh", "-c", "pnpm prisma migrate deploy && pnpm run start:dev"]
+    command: ["sh", "./wait-for-it.sh", "postgres", "5432", "sh", "-c", "npx prisma migrate deploy && pnpm run start:dev"]
     depends_on:
       - postgres
     environment:
