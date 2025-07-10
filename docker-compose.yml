@@ -11,5 +11,19 @@ services:
       - "5444:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+  nestjs:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: pnpm run start:dev
+    depends_on:
+      - postgres
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://kolya:kolya_pass@postgres/kolyaspeakingwordbot
+      
 volumes:
   postgres_data:
