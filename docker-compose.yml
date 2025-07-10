@@ -12,6 +12,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
   nestjs:
+    image: node:18-alpine
     ports:
       - "3000:3000"
     volumes:
