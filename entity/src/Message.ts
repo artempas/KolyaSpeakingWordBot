@@ -2,6 +2,11 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEnti
 import { User } from './User';
 import { CallbackQuery, Message as TelegramMessage } from 'node-telegram-bot-api';
 
+export enum MessageDirection {
+  IN = 'in',
+  OUT = 'out'
+}
+
 @Entity()
 export class Message extends BaseEntity {
   @PrimaryGeneratedColumn()
@@ -17,8 +22,11 @@ export class Message extends BaseEntity {
   @JoinColumn({referencedColumnName: 'id', name: 'user_id'})
   user: User;
 
+  @Column({enum: MessageDirection, type: 'enum'})
+  direction: MessageDirection
+
   @Column('json')
-  content: {type: 'Message'} & TelegramMessage | {type: 'CallbackQuery'} & CallbackQuery;
+  content: ({type: 'Message'} & TelegramMessage) | ({type: 'CallbackQuery'} & CallbackQuery);
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;

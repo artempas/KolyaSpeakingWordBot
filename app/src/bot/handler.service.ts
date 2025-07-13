@@ -6,7 +6,7 @@ import { CallbackQuery, Message as TelegramMessage, Metadata} from 'node-telegra
 import { AddWordHandler, HandlerInterface, MenuHandler, RemoveWordHandler, VocabularyHandler } from './handlers';
 import { ExtendedCallbackQuery, ExtendedMessage } from './types';
 import { BotService } from './bot.service';
-import { User, Message, Word, Position } from '@kolya-quizlet/entity';
+import { User, Message, Word, Position, MessageDirection } from '@kolya-quizlet/entity';
 
 @Injectable()
 export class HandlerService {
@@ -44,7 +44,8 @@ export class HandlerService {
         await this.createMessage({
             telegram_id: String(message.message_id),
             content: {type: 'Message', ...message},
-            user_id: user.id
+            user_id: user.id,
+            direction: MessageDirection.IN
         });
 
         const _message: ExtendedMessage = {
@@ -61,8 +62,7 @@ export class HandlerService {
     }
 
     async handleQuery(
-        query: CallbackQuery,
-        metadata: Metadata
+        query: CallbackQuery
     ){
         const user = await this.upsertUser({
             telegram_id: query.from.id,
@@ -74,16 +74,17 @@ export class HandlerService {
         await this.createMessage({
             telegram_id: query.id,
             content: {type: 'CallbackQuery', ...query},
-            user_id: user.id
+            user_id: user.id,
+            direction: MessageDirection.IN
         });
 
         const _query: ExtendedCallbackQuery = {
             ...query,
             is_answered: false,
-            message: {
+            message: query.message ? {
                 ...query.message,
                 is_deleted: false
-            }
+            } : undefined
         };
 
         let continue_execution = true;

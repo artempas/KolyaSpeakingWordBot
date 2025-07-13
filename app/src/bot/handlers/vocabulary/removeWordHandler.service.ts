@@ -23,8 +23,9 @@ export class RemoveWordHandler implements HandlerInterface{
         @InjectRepository(Word) private readonly wordRepo: Repository<Word>
     ){}
 
-    private async sendPage(user: User, message_id?: number){
-        if (!user.context.REMOVE_WORD?.page) user.context.REMOVE_WORD.page = 0;
+    private async sendPage(user: User, message_id?: number|undefined){
+        if (!user.context.REMOVE_WORD) user.context.REMOVE_WORD={page:0}
+        else if (!user.context.REMOVE_WORD?.page) user.context.REMOVE_WORD.page = 0;
         const page = user.context.REMOVE_WORD.page;
         const page_content = await this.wordRepo.find({
             select: {
@@ -38,7 +39,7 @@ export class RemoveWordHandler implements HandlerInterface{
                 word: 'asc'
             },
             take: this.RESULTS_PER_PAGE + 1,
-            skip: user.context.REMOVE_WORD.page * this.RESULTS_PER_PAGE
+            skip: user.context.REMOVE_WORD.page! * this.RESULTS_PER_PAGE
         });
 
         if (!page_content.length){
@@ -73,6 +74,7 @@ export class RemoveWordHandler implements HandlerInterface{
                 reply_markup: {inline_keyboard: keyboard}
             });
         }
+        return true;
     }
 
     async handleQuery(query: ExtendedCallbackQuery, user: User): Promise<boolean> {
@@ -81,31 +83,34 @@ export class RemoveWordHandler implements HandlerInterface{
         case 'Назад 🔙':
             delete user.context.REMOVE_WORD;
             user.position.pop();
-            await this.bot.deleteMessageIfNotDeleted(query.message);
+            if (query.message)
+                await this.bot.deleteMessageIfNotDeleted(query.message);
             return true;
         case '➡️':
             user.context.REMOVE_WORD.page = user.context.REMOVE_WORD.page !== undefined ? user.context.REMOVE_WORD.page + 1 : 0;
-            return this.sendPage(user, query.message.message_id);
+            return this.sendPage(user, query.message?.message_id);
         case '⬅️':
             user.context.REMOVE_WORD.page = user.context.REMOVE_WORD.page ? user.context.REMOVE_WORD.page - 1 : 0;
-            return this.sendPage(user, query.message.message_id);
+            return this.sendPage(user, query.message?.message_id);
         default:
             if (this.isDeleteQuery(query.data)){
                 await this.handleDelete(user, query);
-                return await this.sendPage(user, query.message.message_id);
+                return await this.sendPage(user, query.message?.message_id);
             } else {
-                await this.bot.deleteMessageIfNotDeleted(query.message);
+                if (query.message)
+                    await this.bot.deleteMessageIfNotDeleted(query.message);
                 return await this.sendPage(user);
             }
         }
     }
 
-    private isDeleteQuery(query: string): query is `remove:${number}`{
+    private isDeleteQuery(query: string|undefined): query is `remove:${number}`{
+        if (!query) return false;
         return /^remove:\d+$/.test(query);
     }
 
     private async handleDelete(user: User, query: ExtendedCallbackQuery){
-        const word_id = +query.data.split(':')[1];
+        const word_id = +query.data!.split(':')[1];
         const word = await this.wordRepo.findOne({
             select: {id: true},
             where: {

@@ -1,6 +1,7 @@
 export default function TryCatchLogger({reThrowError}: {reThrowError: boolean} = {reThrowError: false}) {
     return (target: any, propertyKey?: string, descriptor?: PropertyDescriptor) => {
 
+        if (!descriptor?.value) return;
         const originalMethod = descriptor.value;
 
         if (originalMethod instanceof Function) {

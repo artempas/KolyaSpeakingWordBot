@@ -37,6 +37,7 @@ export class VocabularyHandler implements HandlerInterface{
         default:
             delete user.context.VOCABULARY;
             this.sendMenu(user);
+            return false;
         }
     }
 

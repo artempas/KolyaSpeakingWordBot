@@ -25,9 +25,8 @@ export class BotController {
 
     @TryCatchLogger()
     handleQuery(
-        message: CallbackQuery,
-        metadata: Metadata
+        message: CallbackQuery
     ){
-        return this.botService.handleQuery(message, metadata);
+        return this.botService.handleQuery(message);
     }
 }
