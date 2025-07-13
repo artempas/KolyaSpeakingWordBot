@@ -21,4 +21,4 @@ RUN npm install && npm run build
 
 # Set working directory to admin and start the app
 WORKDIR /app/admin
-CMD ["npm", "run", "production"]
+CMD ["npm", "run", "start"]

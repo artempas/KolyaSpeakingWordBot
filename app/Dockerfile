@@ -26,5 +26,3 @@ COPY --from=builder /app/app/dist ./dist
 COPY --from=builder /app/app/node_modules ./node_modules
 COPY --from=builder /app/app/package.json ./package.json
 COPY --from=builder /app/.env /app/app/.env
-
-CMD ["npm", "run", "start:prod"]
