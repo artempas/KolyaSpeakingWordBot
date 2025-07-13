@@ -13,11 +13,11 @@ COPY .env .env
 
 # Install dependencies for entity and build it
 WORKDIR /app/entity
-RUN npm install --production && npm run build
+RUN npm install && npm run build
 
 # Install dependencies for admin and build it
 WORKDIR /app/admin
-RUN npm install --production && npm run build
+RUN npm install && npm run build
 
 # Set working directory to admin and start the app
 WORKDIR /app/admin
