@@ -1,0 +1,22 @@
+services:
+  nestjs:
+    image: node:18-alpine
+    ports:
+      - "3000:3000"
+    command: ["pnpm run typeorm migration:run && pnpm run start:dev"]
+    depends_on:
+      - postgres
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://kolya:kolya_pass@postgres/kolyaspeakingwordbot
+  admin:
+    build:
+      context: .
+      dockerfile: ./admin/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - postgres
+
