@@ -1,9 +1,11 @@
 services:
   nestjs:
-    image: node:18-alpine
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
     ports:
       - "3000:3000"
-    command: ["pnpm run typeorm migration:run && pnpm run start:dev"]
+    command: sh -c "npm run migration:run && npm run start:dev"
     environment:
       - NODE_ENV=production
   admin:

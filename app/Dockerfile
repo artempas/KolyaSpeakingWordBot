@@ -4,14 +4,15 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy source files
-COPY ./app ./app
-COPY ./entity ./entity
-COPY .env .env
+COPY . .
 
 # Build entity
-WORKDIR /app/entity
-RUN npm install && npm run build
+RUN npm i -g pnpm
+RUN pnpm i
 
-# Build admin
+WORKDIR /app/entity
+RUN pnpm run build
+
 WORKDIR /app/app
-RUN npm install && npm run build
+RUN pnpm run build
+
