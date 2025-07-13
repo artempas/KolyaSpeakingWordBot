@@ -3,10 +3,8 @@ services:
     image: postgres:16
     container_name: kolyaspeakingwordbot-postgres
     restart: always
-    environment:
-      POSTGRES_DB: kolyaspeakingwordbot
-      POSTGRES_USER: kolya
-      POSTGRES_PASSWORD: kolya_pass
+    env_file:
+      - .env
     ports:
       - "5444:5432"
     volumes:
