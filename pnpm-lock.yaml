@@ -31,13 +31,16 @@ importers:
         version: 10.4.19(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.19)
       '@nestjs/swagger':
         specifier: ^7.4.0
-        version: 7.4.2(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.19)(reflect-metadata@0.1.14)
+        version: 7.4.2(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.19(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/platform-express@10.4.19)(reflect-metadata@0.1.14)(rxjs@7.8.2))(reflect-metadata@0.1.14)
       '@nestjs/typeorm':
         specifier: ^10.0.2
-        version: 10.0.2(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.19)(reflect-metadata@0.1.14)(rxjs@7.8.2)(typeorm@0.3.25(pg@8.16.3)(reflect-metadata@0.1.14)(ts-node@8.10.2(typescript@5.8.3)))
+        version: 10.0.2(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.19(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/platform-express@10.4.19)(reflect-metadata@0.1.14)(rxjs@7.8.2))(reflect-metadata@0.1.14)(rxjs@7.8.2)(typeorm@0.3.25(pg@8.16.3)(reflect-metadata@0.1.14)(ts-node@8.10.2(typescript@5.8.3)))
       node-telegram-bot-api:
         specifier: ^0.66.0
         version: 0.66.0(request@2.88.2)
+      openai:
+        specifier: ^5.9.0
+        version: 5.9.0(zod@4.0.5)
       pg:
         specifier: ^8.16.3
         version: 8.16.3
@@ -50,6 +53,9 @@ importers:
       typeorm:
         specifier: ^0.3.25
         version: 0.3.25(pg@8.16.3)(reflect-metadata@0.1.14)(ts-node@8.10.2(typescript@5.8.3))
+      zod:
+        specifier: ^4.0.5
+        version: 4.0.5
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.3.1
@@ -105,6 +111,9 @@ importers:
       typeorm:
         specifier: ^0.3.14
         version: 0.3.25(pg@8.16.3)(reflect-metadata@0.1.14)(ts-node@8.10.2(typescript@5.8.3))
+      zod:
+        specifier: ^4.0.5
+        version: 4.0.5
     devDependencies:
       '@types/node':
         specifier: ^20.11.19
@@ -2114,6 +2123,18 @@ packages:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
 
+  openai@5.9.0:
+    resolution: {integrity: sha512-cmLC0pfqLLhBGxE4aZPyRPjydgYCncppV2ClQkKmW79hNjCvmzkfhz8rN5/YVDmjVQlFV+UsF1JIuNjNgeagyQ==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.23.8
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
+
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
@@ -2992,6 +3013,9 @@ packages:
     resolution: {integrity: sha512-cYVsTjKl8b+FrnidjibDWskAv7UKOfcwaVZdp/it9n1s9fU3IkgDbhdIRKCW4JDsAlECJY0ytoVPT3sK6kideA==}
     engines: {node: '>=18'}
 
+  zod@4.0.5:
+    resolution: {integrity: sha512-/5UuuRPStvHXu7RS+gmvRf4NXrNxpSllGwDnCBcJZtQsKrviYXm54yDGV2KYNLT5kq0lHGcl7lqWJLgSaG+tgA==}
+
 snapshots:
 
   '@angular-devkit/core@19.2.6(chokidar@4.0.3)':
@@ -3425,7 +3449,7 @@ snapshots:
     transitivePeerDependencies:
       - chokidar
 
-  '@nestjs/swagger@7.4.2(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.19)(reflect-metadata@0.1.14)':
+  '@nestjs/swagger@7.4.2(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.19(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/platform-express@10.4.19)(reflect-metadata@0.1.14)(rxjs@7.8.2))(reflect-metadata@0.1.14)':
     dependencies:
       '@microsoft/tsdoc': 0.15.1
       '@nestjs/common': 10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2)
@@ -3437,7 +3461,7 @@ snapshots:
       reflect-metadata: 0.1.14
       swagger-ui-dist: 5.17.14
 
-  '@nestjs/typeorm@10.0.2(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.19)(reflect-metadata@0.1.14)(rxjs@7.8.2)(typeorm@0.3.25(pg@8.16.3)(reflect-metadata@0.1.14)(ts-node@8.10.2(typescript@5.8.3)))':
+  '@nestjs/typeorm@10.0.2(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.19(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/platform-express@10.4.19)(reflect-metadata@0.1.14)(rxjs@7.8.2))(reflect-metadata@0.1.14)(rxjs@7.8.2)(typeorm@0.3.25(pg@8.16.3)(reflect-metadata@0.1.14)(ts-node@8.10.2(typescript@5.8.3)))':
     dependencies:
       '@nestjs/common': 10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2)
       '@nestjs/core': 10.4.19(@nestjs/common@10.4.19(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/platform-express@10.4.19)(reflect-metadata@0.1.14)(rxjs@7.8.2)
@@ -5195,6 +5219,10 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
+  openai@5.9.0(zod@4.0.5):
+    optionalDependencies:
+      zod: 4.0.5
+
   optionator@0.9.4:
     dependencies:
       deep-is: 0.1.4
@@ -6136,3 +6164,5 @@ snapshots:
   yocto-queue@0.1.0: {}
 
   yoctocolors-cjs@2.1.2: {}
+
+  zod@4.0.5: {}

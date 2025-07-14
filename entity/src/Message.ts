@@ -23,11 +23,11 @@ export class Message extends BaseEntity {
   user: User;
 
   @Column({enum: MessageDirection, type: 'enum'})
-  direction: MessageDirection
+  direction: MessageDirection;
 
   @Column('json')
   content: ({type: 'Message'} & TelegramMessage) | ({type: 'CallbackQuery'} & CallbackQuery);
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  createdAt: Date;
+  created_at: Date;
 }

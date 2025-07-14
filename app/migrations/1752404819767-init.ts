@@ -4,6 +4,7 @@ export class Init1752404819767 implements MigrationInterface {
     name = 'Init1752404819767';
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
         await queryRunner.query('CREATE TABLE "adminUser" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "username" character varying(50) NOT NULL, "password" character varying(128) NOT NULL, CONSTRAINT "UQ_58bd2b086488ba1ba90847a192e" UNIQUE ("username"), CONSTRAINT "PK_f155e50a944f2658dc1ccb477a2" PRIMARY KEY ("id"))');
         await queryRunner.query('CREATE TABLE "word" ("id" SERIAL NOT NULL, "user_id" integer NOT NULL, "word" character varying NOT NULL, "meaning" character varying, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_ad026d65e30f80b7056ca31f666" PRIMARY KEY ("id"))');
         await queryRunner.query('CREATE TYPE "public"."user_position_enum" AS ENUM(\'MENU\', \'VOCABULARY\', \'ADD_WORD\', \'REMOVE_WORD\')');

@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity, OneToMany } from 'typeorm';
 import { User } from './User';
+import { Answer } from './Answer';
 
 @Entity()
 export class Word extends BaseEntity {
@@ -20,5 +21,8 @@ export class Word extends BaseEntity {
     meaning?: string;
 
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-    createdAt: Date;
+    created_at: Date;
+
+    @OneToMany(() => Answer, a => a.exercise)
+    answers: Answer[];
 }

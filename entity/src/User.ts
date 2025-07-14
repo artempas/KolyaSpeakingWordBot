@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, BaseEntity } from 'typeorm';
 import { Word } from './Word';
 import { Message } from './Message';
+import { Exercise } from './Exercise';
 
 export enum Position {
   MENU = 'MENU',
@@ -8,6 +9,16 @@ export enum Position {
   ADD_WORD = 'ADD_WORD',
   REMOVE_WORD = 'REMOVE_WORD',
 }
+
+export enum UserLevel {
+    A1 = 'A1',
+    A2 = 'A2',
+    B1 = 'B1',
+    B2 = 'B2',
+    C1 = 'C1',
+    C2 = 'C2'
+}
+
 export type AddWordContextData = {
     repeat?: boolean
     asked?: true
@@ -56,6 +67,17 @@ export class User extends BaseEntity {
     @OneToMany(() => Message, message => message.user)
     messages: Message[];
 
+    @Column({
+        enum: UserLevel,
+        type: 'enum',
+        default: UserLevel.A1,
+        enumName: 'UserLevel'
+    })
+    level: UserLevel;
+
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-    createdAt: Date;
+    created_at: Date;
+
+    @OneToMany(() => Exercise, e => e.user)
+    exercises: Exercise[];
 }
