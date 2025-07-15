@@ -4,7 +4,7 @@ import { Exercise } from './Exercise';
 import { ExerciseType } from './enums';
 
 @Entity()
-export class Answer extends BaseEntity{
+export class Question extends BaseEntity{
 
     @PrimaryGeneratedColumn()
     id: number;
@@ -15,14 +15,26 @@ export class Answer extends BaseEntity{
     @Column()
     word_id: number;
 
+    @Column()
+    text: string;
+
+    @Column({
+        type: 'text',
+        array: true
+    })
+    options: string[];
+
+    @Column()
+    correct_idx: number;
+
     @Column({nullable: true})
     is_correct?: boolean;
 
-    @ManyToOne(() => Word, w => w.answers, {onDelete: 'CASCADE', onUpdate: 'CASCADE'})
+    @ManyToOne(() => Word, w => w.questions, {onDelete: 'CASCADE', onUpdate: 'CASCADE'})
     @JoinColumn({name: 'word_id', referencedColumnName: 'id'})
     word: Word;
 
-    @ManyToOne(() => Exercise, t => t.answers, {onDelete: 'CASCADE', onUpdate: 'CASCADE'})
+    @ManyToOne(() => Exercise, t => t.questions, {onDelete: 'CASCADE', onUpdate: 'CASCADE'})
     @JoinColumn({name: 'exercise_id', referencedColumnName: 'id'})
     exercise: Exercise<ExerciseType>;
 

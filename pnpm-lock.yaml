@@ -39,8 +39,8 @@ importers:
         specifier: ^0.66.0
         version: 0.66.0(request@2.88.2)
       openai:
-        specifier: ^5.9.0
-        version: 5.9.0(zod@4.0.5)
+        specifier: ^5.9.1
+        version: 5.9.1(zod@3.25.76)
       pg:
         specifier: ^8.16.3
         version: 8.16.3
@@ -54,8 +54,8 @@ importers:
         specifier: ^0.3.25
         version: 0.3.25(pg@8.16.3)(reflect-metadata@0.1.14)(ts-node@8.10.2(typescript@5.8.3))
       zod:
-        specifier: ^4.0.5
-        version: 4.0.5
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.3.1
@@ -112,8 +112,8 @@ importers:
         specifier: ^0.3.25
         version: 0.3.25(pg@8.16.3)(reflect-metadata@0.1.14)(ts-node@8.10.2(typescript@5.8.3))
       zod:
-        specifier: ^4.0.5
-        version: 4.0.5
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^20.11.19
@@ -2123,8 +2123,8 @@ packages:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
 
-  openai@5.9.0:
-    resolution: {integrity: sha512-cmLC0pfqLLhBGxE4aZPyRPjydgYCncppV2ClQkKmW79hNjCvmzkfhz8rN5/YVDmjVQlFV+UsF1JIuNjNgeagyQ==}
+  openai@5.9.1:
+    resolution: {integrity: sha512-I4mDBilNVjnobi6XXB0IN5dNwNRzQ1Bs/p8XCEZPy6Q+i8uwncT8d+Cx5CHTrLOE+n0p5M3QFDr5BoDzubMOdg==}
     hasBin: true
     peerDependencies:
       ws: ^8.18.0
@@ -3013,8 +3013,8 @@ packages:
     resolution: {integrity: sha512-cYVsTjKl8b+FrnidjibDWskAv7UKOfcwaVZdp/it9n1s9fU3IkgDbhdIRKCW4JDsAlECJY0ytoVPT3sK6kideA==}
     engines: {node: '>=18'}
 
-  zod@4.0.5:
-    resolution: {integrity: sha512-/5UuuRPStvHXu7RS+gmvRf4NXrNxpSllGwDnCBcJZtQsKrviYXm54yDGV2KYNLT5kq0lHGcl7lqWJLgSaG+tgA==}
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
 snapshots:
 
@@ -5219,9 +5219,9 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
-  openai@5.9.0(zod@4.0.5):
+  openai@5.9.1(zod@3.25.76):
     optionalDependencies:
-      zod: 4.0.5
+      zod: 3.25.76
 
   optionator@0.9.4:
     dependencies:
@@ -6165,4 +6165,4 @@ snapshots:
 
   yoctocolors-cjs@2.1.2: {}
 
-  zod@4.0.5: {}
+  zod@3.25.76: {}

@@ -1,13 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { HandlerInterface } from '../interface';
 import { Message, CallbackQuery } from 'node-telegram-bot-api';
 import { BotService } from '../../bot.service';
-import { User, Word } from '@kolya-quizlet/entity';
+import { Position, User, Word } from '@kolya-quizlet/entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { UserService } from 'src/user/user.service';
+import { PositionHandler } from 'src/bot/handler.decorator';
 
 
 @Injectable()
+@PositionHandler(Position.ADD_WORD)
 export class AddWordHandler implements HandlerInterface{
 
     private readonly REPEAT_ADD_OPTIONS = [
@@ -17,6 +20,8 @@ export class AddWordHandler implements HandlerInterface{
 
     constructor(
         private readonly bot: BotService,
+        @Inject() private readonly userService: UserService,
+
         @InjectRepository(Word) private readonly wordRepo: Repository<Word>
     ){}
 
@@ -49,7 +54,7 @@ export class AddWordHandler implements HandlerInterface{
             return true;
         case 'Назад 🔙':
             delete user.context.ADD_WORD;
-            user.position.pop();
+            this.userService.goBack(user);
             return true;
         default:
             user.context.ADD_WORD = {};

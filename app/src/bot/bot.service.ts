@@ -30,7 +30,7 @@ export class BotService extends TelegramBot{
         if (_user instanceof User){
             user = _user;
         } else {
-            user = await this.userRepo.findOneOrFail({where: {telegram_id: +_user}, select: ['telegram_id', 'id']})
+            user = await this.userRepo.findOneOrFail({where: {telegram_id: +_user}, select: ['telegram_id', 'id']});
         }
         const message = await super.sendMessage(user.telegram_id, text, options);
         this.messageRepo.insert({
@@ -38,7 +38,7 @@ export class BotService extends TelegramBot{
             user_id: user.id,
             content: {type: 'Message', message},
             direction: MessageDirection.OUT
-        })
+        });
         return message;
     }
 }

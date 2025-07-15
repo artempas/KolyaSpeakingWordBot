@@ -1,22 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { CallbackQuery, Message as TelegramMessage, Metadata} from 'node-telegram-bot-api';
-import { AddWordHandler, HandlerInterface, MenuHandler, RemoveWordHandler, VocabularyHandler } from './handlers';
+import { AddWordHandler, MenuHandler, RemoveWordHandler, VocabularyHandler } from './handlers';
 import { ExtendedCallbackQuery, ExtendedMessage } from './types';
 import { BotService } from './bot.service';
-import { User, Message, Word, Position, MessageDirection } from '@kolya-quizlet/entity';
+import { User, Message, MessageDirection } from '@kolya-quizlet/entity';
+import { UserService } from 'src/user/user.service';
+import { handlingMap } from './handler.decorator';
+import { ExerciseHandler } from './handlers/exerciseHandler.service';
 
 @Injectable()
 export class HandlerService {
 
-    private readonly HANDLING_MAP = {
-        MENU: this.menuHandler,
-        VOCABULARY: this.vocabularyHandler,
-        ADD_WORD: this.addWordHandler,
-        REMOVE_WORD: this.removeWordHandler
-    } as const satisfies Record<Position, HandlerInterface>;
+    private readonly HANDLING_MAP = handlingMap;
 
     constructor(
         private readonly bot: BotService,
@@ -24,77 +22,96 @@ export class HandlerService {
         private readonly vocabularyHandler: VocabularyHandler,
         private readonly addWordHandler: AddWordHandler,
         private readonly removeWordHandler: RemoveWordHandler,
+        private readonly exerciseHandler: ExerciseHandler,
+
+        @Inject() private readonly userService: UserService,
 
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
         @InjectRepository(Message)
         private readonly messageRepository: Repository<Message>,
-        @InjectRepository(Word)
-        private readonly wordRepository: Repository<Word>,
     ){}
 
-    async handleMessage(message: TelegramMessage, metadata: Metadata){
+    async handleMessage(_message: TelegramMessage, metadata: Metadata){
         const user = await this.upsertUser({
-            telegram_id: message.chat.id,
-            username: message.chat.username,
-            first_name: message.chat.first_name,
-            last_name: message.chat.last_name,
+            telegram_id: _message.chat.id,
+            username: _message.chat.username,
+            first_name: _message.chat.first_name,
+            last_name: _message.chat.last_name,
         });
 
         await this.createMessage({
-            telegram_id: String(message.message_id),
-            content: {type: 'Message', ...message},
+            telegram_id: String(_message.message_id),
+            content: {type: 'Message', ..._message},
             user_id: user.id,
             direction: MessageDirection.IN
         });
 
-        const _message: ExtendedMessage = {
-            ...message,
+        const message: ExtendedMessage = {
+            ..._message,
             is_deleted: false
         };
+        await this.execute(user, message);
+    }
 
+    private async execute(user: User, event: ExtendedMessage|ExtendedCallbackQuery){
         let continue_execution = true;
         while (continue_execution){
-            continue_execution = await this.HANDLING_MAP[user.position[user.position.length - 1]].handleMessage(_message, user);
-            _message.text = '';
+            const handler = this.HANDLING_MAP.get(this.userService.getCurrentPosition(user));
+            if (!handler) throw new Error(`No handler for position ${this.userService.getCurrentPosition(user)}`);
+            let executed = false;
+            for (const handler_instance in this){
+                if (!(this[handler_instance] instanceof handler)) continue;
+                if (this.isMessage(event)){
+                    continue_execution = await this[handler_instance].handleMessage(event, user);
+                    event.text = '';
+                } else {
+                    continue_execution = await this[handler_instance].handleQuery(event, user);
+                    event.data = '';
+                }
+                executed = true;
+                break;
+            }
+            if (!executed) throw new Error(`No handler instance found for position ${this.userService.getCurrentPosition(user)}`);
         }
         await this.userRepository.save(user);
     }
 
+    private isMessage(e: ExtendedCallbackQuery|ExtendedMessage): e is ExtendedMessage{
+        return 'message_id' in e;
+    }
+
     async handleQuery(
-        query: CallbackQuery
+        _query: CallbackQuery
     ){
         const user = await this.upsertUser({
-            telegram_id: query.from.id,
-            username: query.from.username,
-            first_name: query.from.first_name,
-            last_name: query.from.last_name,
+            telegram_id: _query.from.id,
+            username: _query.from.username,
+            first_name: _query.from.first_name,
+            last_name: _query.from.last_name,
         });
 
         await this.createMessage({
-            telegram_id: query.id,
-            content: {type: 'CallbackQuery', ...query},
+            telegram_id: _query.id,
+            content: {type: 'CallbackQuery', ..._query},
             user_id: user.id,
             direction: MessageDirection.IN
         });
 
-        const _query: ExtendedCallbackQuery = {
-            ...query,
+        const query: ExtendedCallbackQuery = {
+            ..._query,
             is_answered: false,
-            message: query.message ? {
-                ...query.message,
+            message: _query.message ? {
+                ..._query.message,
                 is_deleted: false
             } : undefined
         };
 
-        let continue_execution = true;
-        while (continue_execution){
-            continue_execution = await this.HANDLING_MAP[user.position[user.position.length - 1]].handleQuery(_query, user);
-            _query.data = '';
-        }
+        await this.execute(user, query);
+
         await this.userRepository.save(user);
 
-        await this.bot.answerCallbackQueryIfNotAnswered(_query, {text: query.data});
+        await this.bot.answerCallbackQueryIfNotAnswered(query, {text: _query.data});
     }
 
     async upsertUser(userData: Partial<User>): Promise<User> {

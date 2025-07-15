@@ -3,6 +3,7 @@ export enum Position {
   VOCABULARY = 'VOCABULARY',
   ADD_WORD = 'ADD_WORD',
   REMOVE_WORD = 'REMOVE_WORD',
+  EXERCISE = 'EXERCISE'
 }
 
 export enum UserLevel {

@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BaseEntity, OneToMany } from 'typeorm';
 import { User } from './User';
-import { Answer } from './Answer';
+import { Question } from './Question';
 
 @Entity()
 export class Word extends BaseEntity {
@@ -23,6 +23,6 @@ export class Word extends BaseEntity {
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     created_at: Date;
 
-    @OneToMany(() => Answer, a => a.word)
-    answers: Answer[];
+    @OneToMany(() => Question, a => a.word)
+    questions: Question[];
 }

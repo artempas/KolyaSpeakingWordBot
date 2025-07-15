@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CallbackQuery, Message as TelegramMessage } from 'node-telegram-bot-api';
 import { HandlerInterface } from '../interface';
 import { BotService } from 'src/bot/bot.service';
@@ -6,9 +6,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ExtendedMessage } from 'src/bot/types';
 import { Position, User, Word } from '@kolya-quizlet/entity';
+import { UserService } from 'src/user/user.service';
+import { PositionHandler } from 'src/bot/handler.decorator';
 
 
 @Injectable()
+@PositionHandler(Position.VOCABULARY)
 export class VocabularyHandler implements HandlerInterface{
 
     private readonly OPTIONS = [
@@ -19,19 +22,21 @@ export class VocabularyHandler implements HandlerInterface{
 
     constructor(
         private readonly bot: BotService,
+        @Inject() private readonly userService: UserService,
+
         @InjectRepository(Word) private readonly wordRepo: Repository<Word>
     ){}
 
     async handleQuery(query: CallbackQuery, user: User): Promise<boolean> {
         switch (query.data as typeof this.OPTIONS[number]){
         case 'Добавить слова ➕':
-            user.position.push(Position.ADD_WORD);
+            this.userService.goTo(user, Position.ADD_WORD);
             return true;
         case 'Удалить слова 🗑️':
-            user.position.push(Position.REMOVE_WORD);
+            this.userService.goTo(user, Position.REMOVE_WORD);
             return true;
         case 'Назад 🔙':
-            user.position.pop();
+            this.userService.goBack(user);
             delete user.context.VOCABULARY;
             return true;
         default:

@@ -1,14 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { HandlerInterface } from '../interface';
 import { Message } from 'node-telegram-bot-api';
 import { buildKeyboard } from 'src/bot/utils';
 import { BotService } from 'src/bot/bot.service';
 import { ExtendedCallbackQuery } from 'src/bot/types';
-import { User, Word } from '@kolya-quizlet/entity';
+import { Position, User, Word } from '@kolya-quizlet/entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { UserService } from 'src/user/user.service';
+import { PositionHandler } from 'src/bot/handler.decorator';
 
 @Injectable()
+@PositionHandler(Position.REMOVE_WORD)
 export class RemoveWordHandler implements HandlerInterface{
     private readonly RESULTS_PER_PAGE = 10;
 
@@ -20,11 +23,12 @@ export class RemoveWordHandler implements HandlerInterface{
 
     constructor(
         private readonly bot: BotService,
-        @InjectRepository(Word) private readonly wordRepo: Repository<Word>
+        @InjectRepository(Word) private readonly wordRepo: Repository<Word>,
+        @Inject() private readonly userService: UserService,
     ){}
 
     private async sendPage(user: User, message_id?: number|undefined){
-        if (!user.context.REMOVE_WORD) user.context.REMOVE_WORD={page:0}
+        if (!user.context.REMOVE_WORD) user.context.REMOVE_WORD = {page: 0};
         else if (!user.context.REMOVE_WORD?.page) user.context.REMOVE_WORD.page = 0;
         const page = user.context.REMOVE_WORD.page;
         const page_content = await this.wordRepo.find({
@@ -82,7 +86,7 @@ export class RemoveWordHandler implements HandlerInterface{
         switch (query.data as (typeof this.BUTTONS)[keyof typeof this.BUTTONS]){
         case 'Назад 🔙':
             delete user.context.REMOVE_WORD;
-            user.position.pop();
+            this.userService.goBack(user);
             if (query.message)
                 await this.bot.deleteMessageIfNotDeleted(query.message);
             return true;

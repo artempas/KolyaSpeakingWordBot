@@ -1,7 +1,7 @@
 import { BaseEntity, Column, CreateDateColumn, Entity, ForeignKey, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { User } from './User';
 import { ExerciseTemplate } from './ExerciseTemplate';
-import { Answer } from './Answer';
+import { Question } from './Question';
 import { ExerciseStatus, ExerciseType } from './enums';
 import z from 'zod';
 
@@ -21,7 +21,7 @@ export class Exercise<T extends ExerciseType> extends BaseEntity{
     status: ExerciseStatus;
 
     @Column({type: 'jsonb'})
-    generated: z.infer<typeof ExerciseTemplate.TYPE_TO_SCHEMA_MAP[T]>;
+    generated: typeof ExerciseTemplate.TYPE_TO_SCHEMA_MAP[T];
 
     @ManyToOne(() => User, user => user.exercises, {onDelete: 'CASCADE', onUpdate: 'CASCADE'})
     @JoinColumn({name: 'user_id', referencedColumnName: 'id'})
@@ -31,8 +31,8 @@ export class Exercise<T extends ExerciseType> extends BaseEntity{
     @JoinColumn({name: 'template_id', referencedColumnName: 'id'})
     template: ExerciseTemplate<T> | null;
 
-    @OneToMany(() => Answer, a => a.exercise, {cascade: true})
-    answers: Answer[];
+    @OneToMany(() => Question, a => a.exercise, {cascade: true})
+    questions: Question[];
 
     @CreateDateColumn()
     created_at: Date;

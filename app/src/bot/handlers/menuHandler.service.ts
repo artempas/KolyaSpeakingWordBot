@@ -1,23 +1,30 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CallbackQuery, Message } from 'node-telegram-bot-api';
 import { HandlerInterface } from './interface';
 import { BotService } from '../bot.service';
 import { Position, User } from '@kolya-quizlet/entity';
+import { UserService } from 'src/user/user.service';
+import { PositionHandler } from '../handler.decorator';
 
 
 @Injectable()
+@PositionHandler(Position.MENU)
 export class MenuHandler implements HandlerInterface{
 
-    private readonly OPTIONS = ['Мой словарь📚'] as const;
+    private readonly OPTIONS = ['Мой словарь📚', 'Учить слова 🧐'] as const;
 
     constructor(
+        @Inject() private readonly userService: UserService,
         private readonly bot: BotService
     ){}
 
     async handleQuery(query: CallbackQuery, user: User): Promise<boolean> {
         switch (query.data as typeof this.OPTIONS[number]){
         case 'Мой словарь📚':
-            user.position.push(Position.VOCABULARY);
+            this.userService.goTo(user, Position.VOCABULARY);
+            return true;
+        case 'Учить слова 🧐':
+            this.userService.goTo(user, Position.EXERCISE);
             return true;
         default:
             this.sendMenu(user);
