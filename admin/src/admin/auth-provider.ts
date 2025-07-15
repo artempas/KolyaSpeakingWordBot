@@ -9,7 +9,7 @@ import { DEFAULT_ADMIN } from './constants.js';
 const provider = new DefaultAuthProvider({
   componentLoader,
   authenticate: async ({ email, password }) => {
-    if (email === DEFAULT_ADMIN.email) {
+    if (email === DEFAULT_ADMIN.email && password===DEFAULT_ADMIN.password) {
       return { email };
     }
 

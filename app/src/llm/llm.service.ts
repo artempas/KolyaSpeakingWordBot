@@ -19,7 +19,7 @@ export class LlmService {
         prompt: string,
         schema: T,
         variables: { [k in ReplaceableValues]: string }
-    ): Promise<T|null> {
+    ): Promise<z.infer<T>|null> {
         const replacedPrompt = prompt.replace(/\$\{(\w+)\}/g, (_, key) => {
             return variables[key as ReplaceableValues] ?? '';
         });

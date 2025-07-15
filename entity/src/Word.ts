@@ -23,6 +23,6 @@ export class Word extends BaseEntity {
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     created_at: Date;
 
-    @OneToMany(() => Answer, a => a.exercise)
+    @OneToMany(() => Answer, a => a.word)
     answers: Answer[];
 }

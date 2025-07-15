@@ -2,22 +2,8 @@ import { Entity, PrimaryGeneratedColumn, Column, OneToMany, BaseEntity } from 't
 import { Word } from './Word';
 import { Message } from './Message';
 import { Exercise } from './Exercise';
+import { ExerciseType, Position, UserLevel } from './enums';
 
-export enum Position {
-  MENU = 'MENU',
-  VOCABULARY = 'VOCABULARY',
-  ADD_WORD = 'ADD_WORD',
-  REMOVE_WORD = 'REMOVE_WORD',
-}
-
-export enum UserLevel {
-    A1 = 'A1',
-    A2 = 'A2',
-    B1 = 'B1',
-    B2 = 'B2',
-    C1 = 'C1',
-    C2 = 'C2'
-}
 
 export type AddWordContextData = {
     repeat?: boolean
@@ -75,9 +61,9 @@ export class User extends BaseEntity {
     })
     level: UserLevel;
 
+    @OneToMany(() => Exercise, e => e.user)
+    exercises: Exercise<ExerciseType>[];
+
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     created_at: Date;
-
-    @OneToMany(() => Exercise, e => e.user)
-    exercises: Exercise[];
 }

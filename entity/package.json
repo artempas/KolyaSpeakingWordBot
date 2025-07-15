@@ -10,7 +10,7 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
-        "typeorm": "^0.3.14",
+        "typeorm": "^0.3.25",
         "zod": "^4.0.5"
     },
     "devDependencies": {
