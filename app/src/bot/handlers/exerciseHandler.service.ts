@@ -141,7 +141,7 @@ export class ExerciseHandler implements HandlerInterface{
         await this.bot.sendMessage(query.from.id, 'Ещё задание?', {
             reply_markup: {
                 inline_keyboard: [
-                    [{text: 'Да'}],
+                    [{text: 'Да', callback_data: ''}],
                     [{text: 'Назад🔙', callback_data: 'Назад🔙'}]
                 ]
             }
