@@ -2,7 +2,7 @@ import { Controller } from '@nestjs/common';
 import { HandlerService } from './handler.service';
 import { BotService } from './bot.service';
 import { CallbackQuery, Message, Metadata } from 'node-telegram-bot-api';
-import TryCatchLogger from 'src/decorators/tryCatch.decorator';
+import TryCatchLogger from 'decorators/tryCatch.decorator';
 
 @Controller('bot')
 export class BotController {

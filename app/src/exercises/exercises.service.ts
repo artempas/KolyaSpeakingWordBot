@@ -1,7 +1,7 @@
 import { ExerciseTemplate, ExerciseType, Exercise, Word, ExerciseStatus, User, Question } from '@kolya-quizlet/entity';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LlmService } from 'src/llm/llm.service';
+import { LlmService } from 'llm/llm.service';
 import { Repository, Not, Brackets, EntityNotFoundError } from 'typeorm';
 
 @Injectable()

@@ -5,8 +5,8 @@ import { BotService } from '../../bot.service';
 import { Position, User, Word } from '@kolya-quizlet/entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserService } from 'src/user/user.service';
-import { PositionHandler } from 'src/bot/handler.decorator';
+import { UserService } from 'user/user.service';
+import { PositionHandler } from 'bot/handler.decorator';
 
 
 @Injectable()

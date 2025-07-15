@@ -3,7 +3,7 @@ import { CallbackQuery, Message } from 'node-telegram-bot-api';
 import { HandlerInterface } from './interface';
 import { BotService } from '../bot.service';
 import { Position, User } from '@kolya-quizlet/entity';
-import { UserService } from 'src/user/user.service';
+import { UserService } from 'user/user.service';
 import { PositionHandler } from '../handler.decorator';
 
 

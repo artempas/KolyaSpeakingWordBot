@@ -3,9 +3,9 @@ import { CallbackQuery, InlineKeyboardButton, Message, SendMessageOptions } from
 import { HandlerInterface } from './interface';
 import { BotService } from '../bot.service';
 import { Exercise, ExerciseTemplate, ExerciseType, Position, Question, User } from '@kolya-quizlet/entity';
-import { UserService } from 'src/user/user.service';
+import { UserService } from 'user/user.service';
 import { PositionHandler } from '../handler.decorator';
-import { ExercisesService } from 'src/exercises/exercises.service';
+import { ExercisesService } from 'exercises/exercises.service';
 import { buildKeyboard } from '../utils';
 import { EntityNotFoundError } from 'typeorm';
 

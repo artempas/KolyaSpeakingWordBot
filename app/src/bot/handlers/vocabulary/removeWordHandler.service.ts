@@ -1,14 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { HandlerInterface } from '../interface';
 import { Message } from 'node-telegram-bot-api';
-import { buildKeyboard } from 'src/bot/utils';
-import { BotService } from 'src/bot/bot.service';
-import { ExtendedCallbackQuery } from 'src/bot/types';
+import { buildKeyboard } from 'bot/utils';
+import { BotService } from 'bot/bot.service';
+import { ExtendedCallbackQuery } from 'bot/types';
 import { Position, User, Word } from '@kolya-quizlet/entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserService } from 'src/user/user.service';
-import { PositionHandler } from 'src/bot/handler.decorator';
+import { UserService } from 'user/user.service';
+import { PositionHandler } from 'bot/handler.decorator';
 
 @Injectable()
 @PositionHandler(Position.REMOVE_WORD)

@@ -11,7 +11,7 @@
     "start": "dotenvx run -f ../.env -- nest start",
     "start:dev": "dotenvx run -f ../.env -- nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main"
+    "start:prod": "dotenvx run -f ../.env -- node dist/main"
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^1.47.5",

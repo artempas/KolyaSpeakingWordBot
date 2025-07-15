@@ -7,7 +7,7 @@ import { AddWordHandler, MenuHandler, RemoveWordHandler, VocabularyHandler } fro
 import { ExtendedCallbackQuery, ExtendedMessage } from './types';
 import { BotService } from './bot.service';
 import { User, Message, MessageDirection } from '@kolya-quizlet/entity';
-import { UserService } from 'src/user/user.service';
+import { UserService } from 'user/user.service';
 import { handlingMap } from './handler.decorator';
 import { ExerciseHandler } from './handlers/exerciseHandler.service';
 

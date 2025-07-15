@@ -1,13 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CallbackQuery, Message as TelegramMessage } from 'node-telegram-bot-api';
 import { HandlerInterface } from '../interface';
-import { BotService } from 'src/bot/bot.service';
+import { BotService } from 'bot/bot.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ExtendedMessage } from 'src/bot/types';
+import { ExtendedMessage } from 'bot/types';
 import { Position, User, Word } from '@kolya-quizlet/entity';
-import { UserService } from 'src/user/user.service';
-import { PositionHandler } from 'src/bot/handler.decorator';
+import { UserService } from 'user/user.service';
+import { PositionHandler } from 'bot/handler.decorator';
 
 
 @Injectable()
