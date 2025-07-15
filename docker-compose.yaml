@@ -3,15 +3,19 @@ services:
     build:
       context: .
       dockerfile: ./app/Dockerfile
+    volumes:
+      - .:/app_source:ro
     ports:
       - "3000:3000"
     command: sh -c "npm run migration:run && npm run start:dev"
     environment:
       - NODE_ENV=production
   admin:
-    build:
-      context: .
-      dockerfile: ./admin/Dockerfile
+    image: node:18-alpine
+    volumes:
+      - .:/app_source:ro
+    working_dir: /app_source
+    command: sh after_start_admin.sh
     ports:
       - "3001:3001"
     environment:
