@@ -8,8 +8,6 @@ services:
     ports:
       - "3000:3000"
     command: sh after_start_nest.sh
-    environment:
-      - NODE_ENV=production
   admin:
     image: node:18-alpine
     volumes:
@@ -18,6 +16,4 @@ services:
     command: sh after_start_admin.sh
     ports:
       - "3001:3001"
-    environment:
-      - NODE_ENV=production
 
