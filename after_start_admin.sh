@@ -1,9 +1,9 @@
 cp -R /app_source /app
 cd /app
 cd entity
-npm i
+npm ci
 npm run build
 cd ../admin
-npm i
+npm ci
 npm run build
 npm run start
