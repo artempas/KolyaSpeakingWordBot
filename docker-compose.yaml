@@ -9,7 +9,7 @@ services:
       - "3000:3000"
     command: sh after_start_nest.sh
   admin:
-    image: node:18-alpine
+    image: node:20-alpine
     volumes:
       - .:/app_source:ro
     working_dir: /app_source
