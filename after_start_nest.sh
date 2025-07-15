@@ -1,5 +1,5 @@
-# cp -R /app_source /app
-# cd /app
+cp -R /app_source /app
+cd /app
 pnpm i
 cd entity
 pnpm run build
