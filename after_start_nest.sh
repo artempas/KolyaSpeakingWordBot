@@ -1,6 +1,6 @@
 cp -R /app_source /app
 cd /app
-pnpm ci
+pnpm install --frozen-lockfile
 cd entity
 pnpm run build
 cd ../app
