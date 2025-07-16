@@ -38,7 +38,7 @@ export class ExercisesService {
             template.getSchema(),
             {
                 schema: JSON.stringify(template.getSchema()),
-                words: words.map(w => w.word).join(','),
+                words: words.map(w => ({word: w.word, id: w.id})),
                 level: user.level
             }
         );
@@ -133,7 +133,7 @@ export class ExercisesService {
                 const result: Question[] = [];
                 for (const question of generatedTask.multiple_choice_questions){
                     const word = pickedWords.find(
-                        w => w.word.toLowerCase() === question.options[question.correct_answer_index].toLowerCase()
+                        w => w.id === question.word_id
                     );
                     if (word)
                         result.push(this.questionRepo.create({

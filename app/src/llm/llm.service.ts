@@ -20,10 +20,10 @@ export class LlmService {
     async getStructuredResponse<T extends typeof ExerciseTemplate['TYPE_TO_SCHEMA_MAP'][ExerciseType]>(
         prompt: string,
         schema: T,
-        variables: { [k in ReplaceableValues]: string }
+        variables: { [k in ReplaceableValues]: string|{word: string, id: number}[] }
     ): Promise<T|null> {
         const replacedPrompt = prompt.replace(/\$\{(\w+)\}/g, (_, key) => {
-            return variables[key as ReplaceableValues] ?? '';
+            return JSON.stringify(variables[key as ReplaceableValues]) ?? '';
         });
         let response: any = null;
         let attempts = 0;
@@ -34,8 +34,14 @@ export class LlmService {
             response = await this.openai.chat.completions.create({
                 model: 'deepseek-chat',
                 messages: [
-                    { role: 'system', content: this.SYSTEM_PROMPT },
-                    { role: 'user', content: replacedPrompt }
+                    { role: 'system', content: this.SYSTEM_PROMPT + '\n' + prompt },
+                    {
+                        role: 'user',
+                        content: JSON.stringify({
+                            level: variables.level,
+                            words: variables.words
+                        })
+                    }
                 ],
                 response_format: {
                     type: 'json_object'
