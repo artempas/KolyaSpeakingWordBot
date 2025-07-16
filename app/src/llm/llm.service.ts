@@ -34,7 +34,7 @@ export class LlmService {
             response = await this.openai.chat.completions.create({
                 model: 'deepseek-chat',
                 messages: [
-                    { role: 'system', content: this.SYSTEM_PROMPT + '\n' + prompt },
+                    { role: 'system', content: this.SYSTEM_PROMPT + '\n' + replacedPrompt },
                     {
                         role: 'user',
                         content: JSON.stringify({
