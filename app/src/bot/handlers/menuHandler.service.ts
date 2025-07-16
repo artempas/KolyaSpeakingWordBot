@@ -11,7 +11,7 @@ import { PositionHandler } from '../handler.decorator';
 @PositionHandler(Position.MENU)
 export class MenuHandler implements HandlerInterface{
 
-    private readonly OPTIONS = ['Мой словарь📚', 'Учить слова 🧐'] as const;
+    private readonly OPTIONS = ['Мой словарь📚', 'Учить слова 🧐', 'Настройки ⚙️'] as const;
 
     constructor(
         @Inject() private readonly userService: UserService,
@@ -25,6 +25,9 @@ export class MenuHandler implements HandlerInterface{
             return true;
         case 'Учить слова 🧐':
             this.userService.goTo(user, Position.EXERCISE);
+            return true;
+        case 'Настройки ⚙️':
+            this.userService.goTo(user, Position.SETTINGS);
             return true;
         default:
             this.sendMenu(user);
@@ -40,9 +43,7 @@ export class MenuHandler implements HandlerInterface{
     private async sendMenu(user: User): Promise<Message>{
         return await this.bot.sendMessage(user.telegram_id, 'Главное меню', {
             reply_markup: {
-                inline_keyboard: [
-                    this.OPTIONS.map(text => ({text, callback_data: text}))
-                ],
+                inline_keyboard: this.OPTIONS.map(text => ([{text, callback_data: text}])),
                 is_persistent: true,
                 input_field_placeholder: 'Отвечайте кнопками'
             }

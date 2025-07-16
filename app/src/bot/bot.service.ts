@@ -22,7 +22,10 @@ export class BotService extends TelegramBot{
 
     async deleteMessageIfNotDeleted(message: ExtendedMessage): Promise<boolean> {
         if (message.is_deleted) return false;
-        return await super.deleteMessage(message.chat.id, message.message_id);
+        if (await super.deleteMessage(message.chat.id, message.message_id)){
+            message.is_deleted = true;
+            return true;
+        } else return false;
     }
 
     async sendMessage(_user: TelegramBot.ChatId|User, text: string, options?: TelegramBot.SendMessageOptions): Promise<TelegramBot.Message> {

@@ -78,7 +78,7 @@ export class RemoveWordHandler implements HandlerInterface{
                 reply_markup: {inline_keyboard: keyboard}
             });
         }
-        return true;
+        return false;
     }
 
     async handleQuery(query: ExtendedCallbackQuery, user: User): Promise<boolean> {

@@ -3,3 +3,5 @@ export * from './menuHandler.service';
 export * from './vocabulary/vocabularyHandler.service';
 export * from './vocabulary/addWordHandler.service';
 export * from './vocabulary/removeWordHandler.service';
+export * from './settingsHandler.service';
+export * from './exerciseHandler.service';
