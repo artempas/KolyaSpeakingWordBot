@@ -2,7 +2,7 @@ import { ExerciseTemplate, ExerciseType, Exercise, Word, ExerciseStatus, User, Q
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LlmService } from 'llm/llm.service';
-import { Repository, Not, Brackets, EntityNotFoundError } from 'typeorm';
+import { Repository, Not, Brackets, EntityNotFoundError, IsNull } from 'typeorm';
 
 @Injectable()
 export class ExercisesService {
@@ -143,7 +143,7 @@ export class ExercisesService {
                             correct_idx: question.correct_answer_index
                         }));
                     else {
-                        console.log(`Question about word "${question.options[question.correct_answer_index]}" is discarded bcs no such word was given to AI. List of given words: ${pickedWords.map(w=>w.word).join(',')}`)
+                        console.log(`Question about word "${question.options[question.correct_answer_index]}" is discarded bcs no such word was given to AI. List of given words: ${pickedWords.map(w => w.word).join(',')}`);
                     }
                 }
                 return result;
@@ -158,9 +158,12 @@ export class ExercisesService {
         return Object.keys(ExerciseTemplate.TYPE_TO_SCHEMA_MAP[exercise_type]).every(k => k in generated);
     }
 
-    async handleAnswer(question_id: number, is_correct: boolean): Promise<Question> {
+    async handleAnswer(question_id: number, is_correct: boolean): Promise<boolean> {
         const question = await this.questionRepo.findOneOrFail({ where: { id: question_id } });
         question.is_correct = is_correct;
-        return await this.questionRepo.save(question);
+        await this.questionRepo.save(question);
+        const finished = await this.questionRepo.exists({where: {exercise_id: question.exercise_id, is_correct: Not(IsNull())}});
+        if (finished) await this.exerciseRepo.update({id: question.id}, {status: ExerciseStatus.ANSWERED});
+        return finished;
     }
 }

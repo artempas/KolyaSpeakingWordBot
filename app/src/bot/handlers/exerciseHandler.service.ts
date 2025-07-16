@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { CallbackQuery, InlineKeyboardButton, Message, SendMessageOptions } from 'node-telegram-bot-api';
 import { HandlerInterface } from './interface';
 import { BotService } from '../bot.service';
-import { Exercise, ExerciseTemplate, ExerciseType, Position, Question, User } from '@kolya-quizlet/entity';
+import { Exercise, ExerciseStatus, ExerciseTemplate, ExerciseType, Position, Question, User } from '@kolya-quizlet/entity';
 import { UserService } from 'user/user.service';
 import { PositionHandler } from '../handler.decorator';
 import { ExercisesService } from 'exercises/exercises.service';
@@ -13,6 +13,10 @@ import { EntityNotFoundError } from 'typeorm';
 @Injectable()
 @PositionHandler(Position.EXERCISE)
 export class ExerciseHandler implements HandlerInterface{
+
+    private readonly CORRECT_ANSWER_TEXT = '✅ Верно!';
+
+    private readonly INCORRECT_ANSWER_TEXT = '❌ Неверно!';
 
     constructor(
         @Inject() private readonly userService: UserService,
@@ -27,10 +31,10 @@ export class ExerciseHandler implements HandlerInterface{
                 this.userService.goBack(user);
                 return true;
             }
+            await this.bot.answerCallbackQuery(query.id);
             await this.sendExercise(user);
             return false;
         } else {
-            await this.bot.answerCallbackQuery(query.id);
             return await this.handleAnswer(query, parsedQuery.question_id, parsedQuery.is_correct);
         }
     }
@@ -59,6 +63,8 @@ export class ExerciseHandler implements HandlerInterface{
         for (const message of messages){
             await this.bot.sendMessage(user.telegram_id, message.text, message.options);
         }
+        exercise.status = ExerciseStatus.ASKED;
+        await exercise.save();
     }
 
     private exerciseToMessage(exercise: Exercise<ExerciseType>): {text: string, options?: SendMessageOptions}[]{
@@ -134,20 +140,17 @@ export class ExerciseHandler implements HandlerInterface{
             }
         }
         await this.bot.answerCallbackQuery(query.id, {
-            text: is_correct ? '✅ Верно!' : '❌ Неверно!',
+            text: is_correct ? this.CORRECT_ANSWER_TEXT : this.INCORRECT_ANSWER_TEXT,
             show_alert: true
         });
 
-        await this.bot.sendMessage(query.from.id, 'Ещё задание?', {
-            reply_markup: {
-                inline_keyboard: [
-                    [{text: 'Да', callback_data: ''}],
-                    [{text: 'Назад🔙', callback_data: 'Назад🔙'}]
-                ]
-            }
+        await this.bot.editMessageText(query.message!.text! + '\n' + (is_correct ? this.CORRECT_ANSWER_TEXT : this.INCORRECT_ANSWER_TEXT), {
+            message_id: query.message?.message_id,
+            chat_id: query.message?.chat.id,
+            reply_markup: undefined
         });
 
 
-        return true;
+        return false;
     }
 }
