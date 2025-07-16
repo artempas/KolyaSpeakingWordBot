@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { ExerciseTemplate, ExerciseType, ReplaceableValues } from '@kolya-quizlet/entity';
+import { ChatCompletionMessageParam } from 'openai/resources/index';
 
 @Injectable()
 export class LlmService {
@@ -30,19 +31,20 @@ export class LlmService {
         const maxAttempts = 3;
 
         while (attempts < maxAttempts) {
-            console.log('Waiting for openai response');
+            const request:ChatCompletionMessageParam[] = [
+                { role: 'system', content: this.SYSTEM_PROMPT + '\n' + replacedPrompt },
+                {
+                    role: 'user',
+                    content: JSON.stringify({
+                        level: variables.level,
+                        words: variables.words
+                    })
+                }
+            ];
+            console.log('Waiting for openai response. request:', request);
             response = await this.openai.chat.completions.create({
                 model: 'deepseek-chat',
-                messages: [
-                    { role: 'system', content: this.SYSTEM_PROMPT + '\n' + replacedPrompt },
-                    {
-                        role: 'user',
-                        content: JSON.stringify({
-                            level: variables.level,
-                            words: variables.words
-                        })
-                    }
-                ],
+                messages: request,
                 response_format: {
                     type: 'json_object'
                 }
