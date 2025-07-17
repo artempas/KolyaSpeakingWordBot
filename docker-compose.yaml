@@ -6,7 +6,7 @@ services:
     volumes:
       - .:/app_source:ro
     ports:
-      - "3000:3000"
+      - "3030:3000"
     command: sh after_start_nest.sh
   admin:
     image: node:20-alpine
@@ -15,5 +15,5 @@ services:
     working_dir: /app_source
     command: sh after_start_admin.sh
     ports:
-      - "3001:3001"
+      - "3031:3001"
 
