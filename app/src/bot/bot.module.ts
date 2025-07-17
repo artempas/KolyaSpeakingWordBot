@@ -7,12 +7,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Message, User, Word } from '@kolya-quizlet/entity';
 import { UserModule } from 'user/user.module';
 import { ExercisesModule } from 'exercises/exercises.module';
+import { LlmModule } from 'llm/llm.module';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([Word, User, Message]),
         UserModule,
-        ExercisesModule
+        ExercisesModule,
+        LlmModule
     ],
     providers: [
         AddWordHandler,

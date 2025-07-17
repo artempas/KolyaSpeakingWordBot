@@ -6,12 +6,24 @@ import { ChatCompletionMessageParam } from 'openai/resources/index';
 @Injectable()
 export class LlmService {
 
+    current_agent: 'deepseek'|'openai' = 'openai';
+
+    get agent(){
+        return this.current_agent === 'deepseek' ? this.__deepseek : this.__openai;
+    }
+
+    get model(){
+        return this.current_agent === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini';
+    }
+
     private readonly SYSTEM_PROMPT =
 `Ты — интеллектуальный помощник, создающий эффективные и разнообразные задания для изучения и запоминания английских слов пользователями языкового приложения.
 Твоя цель — генерировать задания на английском языке, которые помогут пользователям лучше запомнить слово, его значение, произношение, правописание, контекст употребления и перевод.
 ОТВЕТ ВСЕГДА ДОЛЖЕН БЫТЬ В ФОРМАТЕ JSON`;
 
-    private readonly openai = new OpenAI({
+    private readonly __openai = new OpenAI();
+
+    private readonly __deepseek = new OpenAI({
         apiKey: process.env.DEEPSEEK_API_KEY,
         baseURL: 'https://api.deepseek.com'
     });
@@ -21,7 +33,7 @@ export class LlmService {
     async getStructuredResponse<T extends typeof ExerciseTemplate['TYPE_TO_SCHEMA_MAP'][ExerciseType]>(
         prompt: string,
         schema: T,
-        variables: { [k in ReplaceableValues]: string|{word: string, id: number}[] }
+        variables: { [k in ReplaceableValues]: any }
     ): Promise<T|null> {
         const replacedPrompt = prompt.replace(/\$\{(\w+)\}/g, (_, key) => {
             return JSON.stringify(variables[key as ReplaceableValues]) ?? '';
@@ -42,8 +54,8 @@ export class LlmService {
                 }
             ];
             console.log('Waiting for openai response. request:', request);
-            response = await this.openai.chat.completions.create({
-                model: 'deepseek-chat',
+            response = await this.agent.chat.completions.create({
+                model: this.model,
                 messages: request,
                 response_format: {
                     type: 'json_object'

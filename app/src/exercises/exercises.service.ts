@@ -37,7 +37,7 @@ export class ExercisesService {
             template.prompt,
             template.getSchema(),
             {
-                schema: JSON.stringify(template.getSchema()),
+                schema: template.getSchema(),
                 words: words.map(w => ({word: w.word, id: w.id})),
                 level: user.level
             }
@@ -158,12 +158,21 @@ export class ExercisesService {
         return Object.keys(ExerciseTemplate.TYPE_TO_SCHEMA_MAP[exercise_type]).every(k => k in generated);
     }
 
-    async handleAnswer(question_id: number, is_correct: boolean): Promise<boolean> {
+    async handleAnswer(question_id: number, is_correct: boolean): Promise<{finished: false}|{finished: true, total: number, correct: number}> {
         const question = await this.questionRepo.findOneOrFail({ where: { id: question_id } });
         question.is_correct = is_correct;
         await this.questionRepo.save(question);
-        const finished = await this.questionRepo.exists({where: {exercise_id: question.exercise_id, is_correct: Not(IsNull())}});
-        if (finished) await this.exerciseRepo.update({id: question.id}, {status: ExerciseStatus.ANSWERED});
-        return finished;
+
+        const finished = !await this.questionRepo.exists({where: {exercise_id: question.exercise_id, is_correct: IsNull()}});
+
+        if (finished) {
+            await this.exerciseRepo.update({id: question.exercise_id}, {status: ExerciseStatus.ANSWERED});
+            return {
+                finished: true,
+                total: await this.questionRepo.countBy({exercise_id: question.exercise_id}),
+                correct: await this.questionRepo.countBy({exercise_id: question.exercise_id, is_correct: true})
+            };
+        }
+        return {finished};
     }
 }

@@ -46,6 +46,7 @@ export class ExerciseHandler implements HandlerInterface{
 
     private async sendExercise(user: User){
         await this.bot.sendMessage(user, 'Хм, сейчас что-нибудь придумаю (⊙﹏⊙)');
+        const typingInterval = setInterval(() => this.bot.sendChatAction(user.telegram_id, 'typing'), 5_000);
         let exercise: Exercise<ExerciseType>;
         try {
             exercise = await this.exerciseService.getNextExercise(user);
@@ -59,6 +60,7 @@ export class ExerciseHandler implements HandlerInterface{
             }
             throw e;
         }
+        clearInterval(typingInterval);
         const messages = this.exerciseToMessage(exercise);
         for (const message of messages){
             await this.bot.sendMessage(user.telegram_id, message.text, message.options);
@@ -122,14 +124,15 @@ export class ExerciseHandler implements HandlerInterface{
     }
 
     private async handleAnswer(query: CallbackQuery, question_id: number, is_correct: boolean): Promise<boolean> {
+        let finished;
         try {
-            await this.exerciseService.handleAnswer(question_id, is_correct);
+            finished = await this.exerciseService.handleAnswer(question_id, is_correct);
         } catch (e: any){
             if (e instanceof EntityNotFoundError){
                 await this.bot.sendMessage(query.from.id, 'Упс, кажется я не нашёл такого вопроса:(. Попробуем ещё раз?', {
                     reply_markup: {
                         inline_keyboard: [
-                            [{text: 'Да'}],
+                            [{text: 'Да', callback_data: 'repeat'}],
                             [{text: 'Назад🔙', callback_data: 'Назад🔙'}]
                         ]
                     }
@@ -149,6 +152,22 @@ export class ExerciseHandler implements HandlerInterface{
             chat_id: query.message?.chat.id,
             reply_markup: undefined
         });
+
+        if (finished.finished){
+            await this.bot.sendMessage(
+                query.from.id,
+                `Задание выполнено. Правильных ответов: ${finished.correct}/${finished.total}\n\nХочешь выполнить ещё одно задание?`,
+                {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{text: 'Да', callback_data: 'repeat'}],
+                            [{text: 'Назад🔙', callback_data: 'Назад🔙'}]
+                        ]
+                    }
+                }
+            );
+            return false;
+        }
 
 
         return false;

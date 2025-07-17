@@ -7,6 +7,7 @@ import { UserService } from 'user/user.service';
 import { PositionHandler } from '../handler.decorator';
 import { ExtendedCallbackQuery } from 'bot/types';
 import { buildKeyboard } from 'bot/utils';
+import { LlmService } from 'llm/llm.service';
 
 
 @Injectable()
@@ -20,6 +21,7 @@ export class SettingsHandler implements HandlerInterface{
         constructor(
             private readonly bot: BotService,
             @Inject() private readonly userService: UserService,
+            @Inject() private readonly llmService: LlmService
         ){}
 
         private async sendSettings(user: User, message_id?: number|undefined){
@@ -30,6 +32,9 @@ export class SettingsHandler implements HandlerInterface{
                     back_button: {text: this.BUTTONS.BACK, callback_data: this.BUTTONS.BACK},
                     columns: 2
                 }
+            );
+            keyboard.push(
+                ['deepseek', 'openai'].map(provider => ({text: this.llmService.current_agent === provider ? `🔘${provider}` : `⚪️${provider}`, callback_data: `agent:${provider}`}))
             );
             if (message_id){
                 await this.bot.editMessageReplyMarkup({inline_keyboard: keyboard}, {message_id, chat_id: user.telegram_id});
@@ -52,6 +57,9 @@ export class SettingsHandler implements HandlerInterface{
                 if (this.isSettingsQuery(query.data)){
                     await this.handleSelect(user, query);
                     return await this.sendSettings(user, query.message?.message_id);
+                } else if (this.isAgentQuery(query.data)){
+                    await this.handleAgentSelect(query.data);
+                    return await this.sendSettings(user, query.message?.message_id);
                 } else {
                     if (query.message)
                         await this.bot.deleteMessageIfNotDeleted(query.message);
@@ -63,6 +71,15 @@ export class SettingsHandler implements HandlerInterface{
         private isSettingsQuery(query: string|undefined): query is `level:${UserLevel}`{
             if (!query) return false;
             return /^level:[A-C][1-2]$/.test(query);
+        }
+
+        private isAgentQuery(query: string|undefined): query is `agent:${typeof this.llmService.current_agent}`{
+            if (!query) return false;
+            return /^agent:(openai|deepseek)$/.test(query);
+        }
+
+        private handleAgentSelect(query: `agent:${typeof this.llmService.current_agent}`){
+            this.llmService.current_agent = query.split(':')[1] as typeof this.llmService.current_agent;
         }
 
         private async handleSelect(user: User, query: ExtendedCallbackQuery){
