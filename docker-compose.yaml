@@ -1,4 +1,14 @@
 services:
+  postgres:
+    image: postgres:16
+    container_name: kolyaspeakingwordbot-postgres
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "5444:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
   nestjs:
     build:
       context: .
