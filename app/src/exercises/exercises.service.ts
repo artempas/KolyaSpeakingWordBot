@@ -2,7 +2,8 @@ import { ExerciseTemplate, ExerciseType, Exercise, Word, ExerciseStatus, User, Q
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LlmService } from 'llm/llm.service';
-import { Repository, Not, Brackets, EntityNotFoundError, IsNull } from 'typeorm';
+import { Repository, Not, Brackets, EntityNotFoundError, IsNull, Any } from 'typeorm';
+import { ExerciseFromTypeArray } from './types';
 
 @Injectable()
 export class ExercisesService {
@@ -15,19 +16,37 @@ export class ExercisesService {
         @InjectRepository(Word) private readonly wordRepo: Repository<Word>
     ){}
 
-    async getNextExercise(user: User): Promise<Exercise<ExerciseType>> {
+    async getNextExercise<T extends ExerciseType[]>(
+        user: User,
+        options: {
+            type?: T,
+            id?: number
+        }
+    ): Promise<ExerciseFromTypeArray<T>> {
+        const {type, id} = options;
         const existing_exercise = await this.exerciseRepo.findOne({
-            where: {user_id: user.id, status: Not(ExerciseStatus.ANSWERED)},
+            where: {user_id: user.id, status: Not(ExerciseStatus.ANSWERED), template: {id, type: type ? Any(type) : undefined}},
             relations: {template: true, questions: true},
             order: {created_at: 'asc'}
         });
-        if (existing_exercise) return existing_exercise;
-        else return this.generateExercise(user);
+        if (existing_exercise) return existing_exercise as ExerciseFromTypeArray<T>;
+        else return await this.generateExercise<T>(user, options);
     }
 
-    async generateExercise(user: User): Promise<Exercise<ExerciseType>>{
+    async generateExercise<T extends ExerciseType[]>(
+        user: User,
+        options: {
+            type?: T,
+            id?: number
+        }
+    ): Promise<ExerciseFromTypeArray<T>> {
         const user_words_count = await this.wordRepo.count({where: {user_id: user.id}});
-        const template = await this.pickTemplate(user, user_words_count);
+        let template;
+        if (options.id)
+            template = await this.exerciseTemplateRepo.findOneByOrFail({id: options.id});
+        else
+            template = await this.pickTemplate(user, user_words_count, options.type);
+
 
         const words = await this.pickWords(user, template.max_words);
 
@@ -56,11 +75,11 @@ export class ExercisesService {
             status: ExerciseStatus.GENERATED,
             questions
         });
-        return await this.exerciseRepo.save(newExercise);
+        return await this.exerciseRepo.save(newExercise) as ExerciseFromTypeArray<T>;
     }
 
-    private async pickTemplate(user: User, min_words: number){
-        const available_templates = await this.exerciseTemplateRepo.createQueryBuilder('t')
+    private async pickTemplate(user: User, min_words: number, type?: ExerciseType[]){
+        const available_templates_q = this.exerciseTemplateRepo.createQueryBuilder('t')
             .leftJoin(Exercise, 'e', 'e.template_id = t.id AND e.user_id = :user_id', {user_id: user.id})
             .addSelect('COUNT(e.id)', 'inverseWeight')
             .where('t.available_levels @> :user_level', {user_level: [user.level]})
@@ -69,8 +88,12 @@ export class ExercisesService {
                     qb.where('t.min_words <= :min_words', {min_words})
                         .orWhere('t.min_words IS NULL'))
             )
-            .groupBy('t.id')
-            .getRawAndEntities();
+            .groupBy('t.id');
+        if (type){
+            available_templates_q.andWhere('t.type = ANY(:type)', {type});
+        }
+
+        const available_templates = await available_templates_q.getRawAndEntities();
 
         if (!available_templates.entities.length) throw new EntityNotFoundError(ExerciseTemplate, {available_levels: user.level});
 

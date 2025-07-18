@@ -28,6 +28,9 @@ export class ExerciseTemplate<T extends ExerciseType> extends BaseEntity{
     @PrimaryGeneratedColumn()
     id: number;
 
+    @Column({default: 'DefaultExerciseName'})
+    name: string;
+
     @Column()
     prompt: string;
 

@@ -1,18 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CallbackQuery, InlineKeyboardButton, Message, SendMessageOptions } from 'node-telegram-bot-api';
-import { HandlerInterface } from './interface';
-import { BotService } from '../bot.service';
+import { HandlerInterface } from '../interface';
+import { BotService } from '../../bot.service';
 import { Exercise, ExerciseStatus, ExerciseTemplate, ExerciseType, Position, Question, User } from '@kolya-quizlet/entity';
 import { UserService } from 'user/user.service';
-import { PositionHandler } from '../handler.decorator';
+import { PositionHandler } from '../../handler.decorator';
 import { ExercisesService } from 'exercises/exercises.service';
-import { buildKeyboard } from '../utils';
+import { buildKeyboard } from '../../utils';
 import { EntityNotFoundError } from 'typeorm';
 
 
 @Injectable()
-@PositionHandler(Position.EXERCISE)
-export class ExerciseHandler implements HandlerInterface{
+@PositionHandler(Position.MULTIPLE_CHOICE)
+export class MultipleChoiceHandler implements HandlerInterface{
 
     private readonly CORRECT_ANSWER_TEXT = '✅ Верно!';
 
@@ -44,36 +44,46 @@ export class ExerciseHandler implements HandlerInterface{
         return false;
     }
 
-    private async sendExercise(user: User){
-        await this.bot.sendMessage(user, 'Хм, сейчас что-нибудь придумаю (⊙﹏⊙)');
-        const typingInterval = setInterval(() => this.bot.sendChatAction(user.telegram_id, 'typing'), 5_000);
-        let exercise: Exercise<ExerciseType>;
-        try {
-            exercise = await this.exerciseService.getNextExercise(user);
-        } catch (e: any){
-            if (e instanceof EntityNotFoundError){
-                if (e.entityClass === ExerciseTemplate){
-                    await this.bot.sendMessage(user, 'Упс, кажется у нас нет пока заданий для вашего уровня языка. Приходите попозже, мы обязательно их добавим');
-                    this.userService.goBack(user);
-                    return true;
+    async sendExercise(user: User, _exercise?: Exercise<ExerciseType.MULTIPLE_CHOICE>|Exercise<ExerciseType.TEXT_WITH_MULTIPLE_CHOICE>){
+        let exercise = _exercise;
+        if (!exercise){
+            await this.bot.sendMessage(user, 'Хм, сейчас что-нибудь придумаю (⊙﹏⊙)');
+            await this.bot.sendChatAction(user.telegram_id, 'typing');
+            const typingInterval = setInterval(() => this.bot.sendChatAction(user.telegram_id, 'typing'), 5_000);
+            try {
+                exercise = await this.exerciseService.getNextExercise(
+                    user,
+                    {type: [ExerciseType.MULTIPLE_CHOICE, ExerciseType.TEXT_WITH_MULTIPLE_CHOICE] as const}
+                );
+            } catch (e: any){
+                if (e instanceof EntityNotFoundError){
+                    if (e.entityClass === ExerciseTemplate){
+                        await this.bot.sendMessage(user, 'Упс, кажется у нас нет пока заданий такого типа для вашего уровня языка. Приходите попозже, мы обязательно их добавим');
+                        this.userService.goBack(user);
+                        return true;
+                    }
                 }
+                throw e;
             }
-            throw e;
+            clearInterval(typingInterval);
         }
-        clearInterval(typingInterval);
+
         const messages = this.exerciseToMessage(exercise);
-        for (const message of messages){
+        for (let message of messages){
             await this.bot.sendMessage(user.telegram_id, message.text, message.options);
         }
         exercise.status = ExerciseStatus.ASKED;
         await exercise.save();
+        return false;
     }
 
-    private exerciseToMessage(exercise: Exercise<ExerciseType>): {text: string, options?: SendMessageOptions}[]{
-        const messages: ReturnType<ExerciseHandler['exerciseToMessage']> = [];
+    private exerciseToMessage(
+        exercise: Exercise<ExerciseType.MULTIPLE_CHOICE>|Exercise<ExerciseType.TEXT_WITH_MULTIPLE_CHOICE>
+    ): {text: string, options?: SendMessageOptions}[]{
+        const messages: ReturnType<MultipleChoiceHandler['exerciseToMessage']> = [];
 
 
-        const parseMultipleChoice = (question: Question): ReturnType<ExerciseHandler['exerciseToMessage']>[number] => {
+        const parseMultipleChoice = (question: Question) => {
             return {
                 text: question.text,
                 options: {
@@ -105,6 +115,7 @@ export class ExerciseHandler implements HandlerInterface{
             }
         case ExerciseType.MULTIPLE_CHOICE:
             messages.push(parseMultipleChoice(exercise.questions[0]));
+            break;
         }
         return messages;
     }
@@ -168,8 +179,6 @@ export class ExerciseHandler implements HandlerInterface{
             );
             return false;
         }
-
-
         return false;
     }
 }

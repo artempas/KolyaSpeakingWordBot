@@ -4,7 +4,8 @@ export enum Position {
   ADD_WORD = 'ADD_WORD',
   REMOVE_WORD = 'REMOVE_WORD',
   EXERCISE = 'EXERCISE',
-  SETTINGS = 'SETTINGS'
+  SETTINGS = 'SETTINGS',
+  MULTIPLE_CHOICE = 'MULTIPLE_CHOICE'
 }
 
 export enum UserLevel {
