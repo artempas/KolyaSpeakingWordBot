@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 @Injectable()
-export class UserService {
+export class UsersService {
 
     private readonly DEFAULT_POSITION = [Position.MENU];
 

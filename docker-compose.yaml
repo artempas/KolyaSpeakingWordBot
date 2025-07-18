@@ -26,4 +26,10 @@ services:
     command: sh after_start_admin.sh
     ports:
       - "3031:3001"
+  redis:
+    image: redis:7-alpine
+    container_name: kolyaspeakingwordbot-redis
+    restart: always
+    ports:
+      - "6379:6379"
 

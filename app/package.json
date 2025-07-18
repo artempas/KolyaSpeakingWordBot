@@ -14,8 +14,12 @@
     "start:prod": "dotenvx run -f ../.env -- node dist/main"
   },
   "dependencies": {
+    "@bull-board/api": "^6.11.1",
+    "@bull-board/express": "^6.11.1",
+    "@bull-board/nestjs": "^6.11.1",
     "@dotenvx/dotenvx": "^1.47.5",
     "@kolya-quizlet/entity": "workspace:*",
+    "@nestjs/bullmq": "^11.0.2",
     "@nestjs/cli": "^11.0.7",
     "@nestjs/common": "^10.0.0",
     "@nestjs/core": "^10.0.0",
@@ -23,6 +27,9 @@
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/swagger": "^7.4.0",
     "@nestjs/typeorm": "^10.0.2",
+    "axios": "^1.10.0",
+    "bullmq": "^5.56.4",
+    "express-basic-auth": "^1.2.1",
     "node-telegram-bot-api": "^0.66.0",
     "openai": "^5.9.1",
     "pg": "^8.16.3",

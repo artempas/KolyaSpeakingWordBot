@@ -3,7 +3,7 @@ import { CallbackQuery, InlineKeyboardButton, Message, SendMessageOptions } from
 import { HandlerInterface } from '../interface';
 import { BotService } from '../../bot.service';
 import { Exercise, ExerciseStatus, ExerciseTemplate, ExerciseType, Position, Question, User } from '@kolya-quizlet/entity';
-import { UserService } from 'user/user.service';
+import { UsersService } from 'users/users.service';
 import { PositionHandler } from '../../handler.decorator';
 import { ExercisesService } from 'exercises/exercises.service';
 import { buildKeyboard } from '../../utils';
@@ -19,7 +19,7 @@ export class MultipleChoiceHandler implements HandlerInterface{
     private readonly INCORRECT_ANSWER_TEXT = '❌ Неверно!';
 
     constructor(
-        @Inject() private readonly userService: UserService,
+        @Inject() private readonly userService: UsersService,
         @Inject() private readonly exerciseService: ExercisesService,
         private readonly bot: BotService
     ){}

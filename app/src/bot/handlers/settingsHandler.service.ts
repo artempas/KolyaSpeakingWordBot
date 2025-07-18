@@ -3,7 +3,7 @@ import { InlineKeyboardButton, Message } from 'node-telegram-bot-api';
 import { HandlerInterface } from './interface';
 import { BotService } from '../bot.service';
 import { Position, User, UserLevel } from '@kolya-quizlet/entity';
-import { UserService } from 'user/user.service';
+import { UsersService } from 'users/users.service';
 import { PositionHandler } from '../handler.decorator';
 import { ExtendedCallbackQuery } from 'bot/types';
 import { buildKeyboard } from 'bot/utils';
@@ -20,7 +20,7 @@ export class SettingsHandler implements HandlerInterface{
 
         constructor(
             private readonly bot: BotService,
-            @Inject() private readonly userService: UserService,
+            @Inject() private readonly userService: UsersService,
             @Inject() private readonly llmService: LlmService
         ){}
 

@@ -18,7 +18,10 @@ export class Word extends BaseEntity {
     word: string;
 
     @Column({ nullable: true })
-    meaning?: string;
+    meaning: string|null;
+
+    @Column({ nullable: true })
+    translation: string|null;
 
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     created_at: Date;

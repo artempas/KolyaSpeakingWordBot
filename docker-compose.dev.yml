@@ -9,19 +9,12 @@ services:
       - "5444:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-  nestjs:
-    image: node:18-alpine
+  redis:
+    image: redis:7-alpine
+    container_name: kolyaspeakingwordbot-redis
+    restart: always
     ports:
-      - "3000:3000"
-    volumes:
-      - .:/app
-    working_dir: /app
-    command: ["sh", "./wait-for-it.sh", "postgres", "5432", "sh", "-c", "npx prisma migrate deploy && pnpm run start:dev"]
-    depends_on:
-      - postgres
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://kolya:kolya_pass@postgres/kolyaspeakingwordbot
+      - "6379:6379"
   
       
 volumes:

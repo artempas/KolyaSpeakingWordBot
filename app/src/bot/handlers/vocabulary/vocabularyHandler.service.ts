@@ -6,7 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ExtendedMessage } from 'bot/types';
 import { Position, User, Word } from '@kolya-quizlet/entity';
-import { UserService } from 'user/user.service';
+import { UsersService } from 'users/users.service';
 import { PositionHandler } from 'bot/handler.decorator';
 
 
@@ -22,7 +22,7 @@ export class VocabularyHandler implements HandlerInterface{
 
     constructor(
         private readonly bot: BotService,
-        @Inject() private readonly userService: UserService,
+        @Inject() private readonly userService: UsersService,
 
         @InjectRepository(Word) private readonly wordRepo: Repository<Word>
     ){}

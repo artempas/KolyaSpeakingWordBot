@@ -7,7 +7,7 @@ import { AddWordHandler, MenuHandler, MultipleChoiceHandler, RemoveWordHandler, 
 import { ExtendedCallbackQuery, ExtendedMessage } from './types';
 import { BotService } from './bot.service';
 import { User, Message, MessageDirection } from '@kolya-quizlet/entity';
-import { UserService } from 'user/user.service';
+import { UsersService } from 'users/users.service';
 import { handlingMap } from './handler.decorator';
 import { ExerciseHandler } from './handlers/exercises/exerciseHandler.service';
 
@@ -26,7 +26,7 @@ export class HandlerService {
         private readonly settingsHandler: SettingsHandler,
         private readonly multipleChoice: MultipleChoiceHandler,
 
-        @Inject() private readonly userService: UserService,
+        @Inject() private readonly userService: UsersService,
 
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,

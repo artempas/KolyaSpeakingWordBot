@@ -2,11 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { HandlerInterface } from '../interface';
 import { Message, CallbackQuery } from 'node-telegram-bot-api';
 import { BotService } from '../../bot.service';
-import { Position, User, Word } from '@kolya-quizlet/entity';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { UserService } from 'user/user.service';
+import { Position, User } from '@kolya-quizlet/entity';
+import { UsersService } from 'users/users.service';
 import { PositionHandler } from 'bot/handler.decorator';
+import { WordsService } from 'words/words.service';
 
 
 @Injectable()
@@ -20,9 +19,8 @@ export class AddWordHandler implements HandlerInterface{
 
     constructor(
         private readonly bot: BotService,
-        @Inject() private readonly userService: UserService,
-
-        @InjectRepository(Word) private readonly wordRepo: Repository<Word>
+        @Inject() private readonly userService: UsersService,
+        @Inject() private readonly wordService: WordsService,
     ){}
 
     async handleMessage(message: Message, user: User): Promise<boolean> {
@@ -35,12 +33,7 @@ export class AddWordHandler implements HandlerInterface{
             return false;
         }
         const words = message.text.split(',').map(word => word.trim()).filter(i => i);
-        const result = await this.wordRepo.save(
-            words.map(word => ({
-                user_id: user.id,
-                word
-            }))
-        );
+        const result = await this.wordService.addWords(words, user);
         await this.bot.sendMessage(user.telegram_id, `Готово, записал ${result.length} слов: \n ${words.join('\n')}`);
         user.context.ADD_WORD.repeat = true;
         return true;

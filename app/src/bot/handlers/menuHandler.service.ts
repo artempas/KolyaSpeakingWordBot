@@ -3,7 +3,7 @@ import { CallbackQuery, Message } from 'node-telegram-bot-api';
 import { HandlerInterface } from './interface';
 import { BotService } from '../bot.service';
 import { Position, User } from '@kolya-quizlet/entity';
-import { UserService } from 'user/user.service';
+import { UsersService } from 'users/users.service';
 import { PositionHandler } from '../handler.decorator';
 
 
@@ -14,7 +14,7 @@ export class MenuHandler implements HandlerInterface{
     private readonly OPTIONS = ['Мой словарь📚', 'Учить слова 🧐', 'Настройки ⚙️'] as const;
 
     constructor(
-        @Inject() private readonly userService: UserService,
+        @Inject() private readonly userService: UsersService,
         private readonly bot: BotService
     ){}
 

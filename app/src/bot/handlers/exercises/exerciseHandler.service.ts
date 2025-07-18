@@ -3,7 +3,7 @@ import { CallbackQuery, Message } from 'node-telegram-bot-api';
 import { HandlerInterface } from '../interface';
 import { BotService } from '../../bot.service';
 import { Exercise, ExerciseTemplate, ExerciseType, Position, User } from '@kolya-quizlet/entity';
-import { UserService } from 'user/user.service';
+import { UsersService } from 'users/users.service';
 import { PositionHandler } from '../../handler.decorator';
 import { ExercisesService } from 'exercises/exercises.service';
 import { ArrayContains, EntityNotFoundError, Repository } from 'typeorm';
@@ -18,7 +18,7 @@ import { buildKeyboard } from 'bot/utils';
 export class ExerciseHandler implements HandlerInterface{
 
     constructor(
-        @Inject() private readonly userService: UserService,
+        @Inject() private readonly userService: UsersService,
         @Inject() private readonly exerciseService: ExercisesService,
         @InjectRepository(ExerciseTemplate) private readonly exerciseTemplateRepo: Repository<ExerciseTemplate<ExerciseType>>,
         private readonly multipleChoiceHandler: MultipleChoiceHandler,
