@@ -2,11 +2,10 @@ import { User, Word } from '@kolya-quizlet/entity';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import axios, { AxiosResponse } from 'axios';
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job, Queue } from 'bullmq';
 import { AddTranslationJob } from './words.job';
-import { CircularJsonStringifyCensor } from 'utils';
+import Reverso from 'reverso-api';
 
 @Injectable()
 @Processor(
@@ -21,12 +20,7 @@ import { CircularJsonStringifyCensor } from 'utils';
 export class WordsService extends WorkerHost{
     static readonly queueName = 'WordsService';
 
-    private readonly yandexCloud = axios.create({
-        baseURL: 'https://translate.api.cloud.yandex.net',
-        headers: {
-            Authorization: `Api-Key ${process.env.YANDEX_TRANSLATE_API_KEY}`
-        }
-    });
+    private readonly reverso = new Reverso();
 
     constructor(
         @InjectRepository(Word) private readonly wordRepo: Repository<Word>,
@@ -64,25 +58,19 @@ export class WordsService extends WorkerHost{
             await job.log(`Word with id ${job.data.word_id} not found. Stopping`);
             return false;
         }
-        let translation_response: AxiosResponse<{translations: {text: string;detectedLanguageCode: string;}[];}, any>;
+        let translation_response;
         try {
-            translation_response = await this.yandexCloud.post(
-                'translate/v2/translate',
-                {
-                    'folderId': process.env.YANDEX_TRANSLATE_FOLDER_ID,
-                    'sourceLanguageCode': 'en',
-                    'speller': true,
-                    'texts': [word.word],
-                    'targetLanguageCode': 'ru'
-                }
-            );
+            translation_response = await this.reverso.getTranslation(word.word, 'english', 'russian');
+            if (!translation_response.ok){
+                throw new Error(translation_response.message);
+            }
         } catch (e: any){
-            await job.log(`API_ERROR: ${e}, ${JSON.stringify(e.response.data, CircularJsonStringifyCensor(e.response.data))}.\nWORD_ID:${job.data.word_id}\nWORD: ${JSON.stringify(word)}`);
+            await job.log(`API_ERROR: ${e}.\nWORD_ID:${job.data.word_id}\nWORD: ${JSON.stringify(word)}`);
             throw e;
         }
-        await job.log(`Got translation response: ${JSON.stringify(translation_response.data)}`);
-        if (translation_response.data.translations[0]){
-            word.translation = translation_response.data.translations[0].text;
+        await job.log(`Got translation response: ${JSON.stringify(translation_response)}`);
+        if (translation_response.translations[0]){
+            word.translation = translation_response.translations[0];
         }
         await word.save();
         await job.log(`Word updated: ${JSON.stringify({ id: word.id, word: word.word, translation: word.translation })}`);
