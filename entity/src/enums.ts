@@ -5,7 +5,8 @@ export enum Position {
   REMOVE_WORD = 'REMOVE_WORD',
   EXERCISE = 'EXERCISE',
   SETTINGS = 'SETTINGS',
-  MULTIPLE_CHOICE = 'MULTIPLE_CHOICE'
+  MULTIPLE_CHOICE = 'MULTIPLE_CHOICE',
+  MATCHING = 'MATCHING'
 }
 
 export enum UserLevel {
@@ -19,7 +20,8 @@ export enum UserLevel {
 
 export enum ExerciseType {
     TEXT_WITH_MULTIPLE_CHOICE = 'text_with_multiple_choice',
-    MULTIPLE_CHOICE = 'multiple_choice'
+    MULTIPLE_CHOICE = 'multiple_choice',
+    TRANSLATION_MATCH = 'translation_match'
 }
 
 export enum ExerciseStatus {

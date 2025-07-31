@@ -28,6 +28,8 @@ export class MultipleChoiceHandler implements HandlerInterface{
         const parsedQuery = this.parseCallbackQuery(query.data);
         if (!parsedQuery){
             if (query.data === 'Назад🔙'){
+                if (query.message?.message_id)
+                    await this.bot.deleteMessage(user.telegram_id, query.message?.message_id);
                 this.userService.goBack(user);
                 return true;
             }
@@ -137,7 +139,7 @@ export class MultipleChoiceHandler implements HandlerInterface{
     private async handleAnswer(query: CallbackQuery, question_id: number, is_correct: boolean): Promise<boolean> {
         let finished;
         try {
-            finished = await this.exerciseService.handleAnswer(question_id, is_correct);
+            finished = await this.exerciseService.handleAnswer(question_id, {is_correct});
         } catch (e: any){
             if (e instanceof EntityNotFoundError){
                 await this.bot.sendMessage(query.from.id, 'Упс, кажется я не нашёл такого вопроса:(. Попробуем ещё раз?', {
@@ -154,7 +156,7 @@ export class MultipleChoiceHandler implements HandlerInterface{
             }
         }
         await this.bot.answerCallbackQuery(query.id, {
-            text: is_correct ? this.CORRECT_ANSWER_TEXT : this.INCORRECT_ANSWER_TEXT,
+            text: finished.is_correct ? this.CORRECT_ANSWER_TEXT : this.INCORRECT_ANSWER_TEXT,
             show_alert: true
         });
 

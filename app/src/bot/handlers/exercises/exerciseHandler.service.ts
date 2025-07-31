@@ -11,6 +11,7 @@ import { MultipleChoiceHandler } from './multipleChoiceHandler.service';
 import { ExtendedMessage } from 'bot/types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { buildKeyboard } from 'bot/utils';
+import { MatchingHandler } from './matchingHandler.service';
 
 
 @Injectable()
@@ -22,6 +23,7 @@ export class ExerciseHandler implements HandlerInterface{
         @Inject() private readonly exerciseService: ExercisesService,
         @InjectRepository(ExerciseTemplate) private readonly exerciseTemplateRepo: Repository<ExerciseTemplate<ExerciseType>>,
         private readonly multipleChoiceHandler: MultipleChoiceHandler,
+        private readonly matchingHandler: MatchingHandler,
         private readonly bot: BotService
     ){}
 
@@ -30,6 +32,8 @@ export class ExerciseHandler implements HandlerInterface{
         case 'Случайное 🪄':
             return await this.sendExercise(user);
         case 'Назад 🔙':
+            if (query.message?.message_id)
+                await this.bot.deleteMessage(user.telegram_id, query.message?.message_id);
             this.userService.goBack(user);
             delete user.context.EXERCISE;
             return true;
@@ -81,7 +85,7 @@ export class ExerciseHandler implements HandlerInterface{
         await this.bot.sendMessage(user, 'Хм, сейчас что-нибудь придумаю (⊙﹏⊙)');
         let exercise: Exercise<ExerciseType>;
         try {
-            exercise = await this.exerciseService.getNextExercise(user, {id});
+            exercise = await this.exerciseService.getNextExercise(user, {template_id: id});
         } catch (e: any){
             if (e instanceof EntityNotFoundError){
                 if (e.entityClass === ExerciseTemplate){
@@ -99,6 +103,12 @@ export class ExerciseHandler implements HandlerInterface{
             return await this.multipleChoiceHandler.sendExercise(
                 user,
                 exercise as Exercise<ExerciseType.MULTIPLE_CHOICE>|Exercise<ExerciseType.TEXT_WITH_MULTIPLE_CHOICE>
+            );
+        case ExerciseType.TRANSLATION_MATCH:
+            this.userService.goTo(user, Position.MATCHING);
+            return await this.matchingHandler.sendExercise(
+                user,
+                {exercise: exercise as Exercise<ExerciseType.TRANSLATION_MATCH>}
             );
         default:
             throw new Error('Not implemented');

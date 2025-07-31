@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { CallbackQuery, Message as TelegramMessage, Metadata} from 'node-telegram-bot-api';
-import { AddWordHandler, MenuHandler, MultipleChoiceHandler, RemoveWordHandler, SettingsHandler, VocabularyHandler } from './handlers';
+import { AddWordHandler, MatchingHandler, MenuHandler, MultipleChoiceHandler, RemoveWordHandler, SettingsHandler, VocabularyHandler } from './handlers';
 import { ExtendedCallbackQuery, ExtendedMessage } from './types';
 import { BotService } from './bot.service';
 import { User, Message, MessageDirection } from '@kolya-quizlet/entity';
@@ -25,6 +25,7 @@ export class HandlerService {
         private readonly exerciseHandler: ExerciseHandler,
         private readonly settingsHandler: SettingsHandler,
         private readonly multipleChoice: MultipleChoiceHandler,
+        private readonly matching: MatchingHandler,
 
         @Inject() private readonly userService: UsersService,
 

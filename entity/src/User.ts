@@ -12,9 +12,17 @@ export type AddWordContextData = {
 export type RemoveWordContextData = {
     page?: number,
 }
+
+export type MatchingContextData = {
+    question_selected_id?: number,
+    option_selected_idx?: number,
+    current_exercise_id: number
+}
+
 export type ContextData<P extends Position> =
       P extends 'ADD_WORD' ? AddWordContextData
     : P extends 'REMOVE_WORD' ? RemoveWordContextData
+    : P extends 'MATCHING' ? MatchingContextData
     : Record<never, never>;
 
 @Entity()

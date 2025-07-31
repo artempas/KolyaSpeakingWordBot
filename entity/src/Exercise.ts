@@ -3,7 +3,6 @@ import { User } from './User';
 import { ExerciseTemplate } from './ExerciseTemplate';
 import { Question } from './Question';
 import { ExerciseStatus, ExerciseType } from './enums';
-import z from 'zod';
 
 @Entity()
 export class Exercise<T extends ExerciseType> extends BaseEntity{

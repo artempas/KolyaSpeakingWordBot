@@ -17,7 +17,8 @@ export class UsersService {
     }
 
     goBack(user:User){
-        user.position.pop();
+        const last_position = user.position.pop();
+        delete user.context[last_position!];
         if (!user.position.length){
             user.position = [...this.DEFAULT_POSITION];
         }

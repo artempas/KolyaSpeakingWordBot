@@ -20,13 +20,14 @@ export class ExercisesService {
         user: User,
         options: {
             type?: T,
+            template_id?: number,
             id?: number
         }
     ): Promise<ExerciseFromTypeArray<T>> {
-        const {type, id} = options;
+        const {type, id, template_id} = options;
         const existing_exercise = await this.exerciseRepo.findOne({
-            where: {user_id: user.id, status: Not(ExerciseStatus.ANSWERED), template: {id, type: type ? Any(type) : undefined}},
-            relations: {template: true, questions: true},
+            where: {id, user_id: user.id, status: Not(ExerciseStatus.ANSWERED), template: {id: template_id, type: type ? Any(type) : undefined}},
+            relations: {template: true, questions: {word: true}},
             order: {created_at: 'asc'}
         });
         if (existing_exercise) return existing_exercise as ExerciseFromTypeArray<T>;
@@ -37,36 +38,53 @@ export class ExercisesService {
         user: User,
         options: {
             type?: T,
-            id?: number
+            template_id?: number
         }
     ): Promise<ExerciseFromTypeArray<T>> {
         const user_words_count = await this.wordRepo.count({where: {user_id: user.id}});
         let template;
-        if (options.id)
-            template = await this.exerciseTemplateRepo.findOneByOrFail({id: options.id});
+        if (options.template_id)
+            template = await this.exerciseTemplateRepo.findOneByOrFail({id: options.template_id});
         else
             template = await this.pickTemplate(user, user_words_count, options.type);
 
-
-        const words = await this.pickWords(user, template.max_words);
+        const words = await this.pickWords(user, template.max_words, template.requires_translation);
 
         console.log('Picked words: ', words);
+        let generatedTask, questions: Question[];
+        if (template.prompt){
 
-        const generatedTask = await this.llmService.getStructuredResponse(
-            template.prompt,
-            template.getSchema(),
-            {
-                schema: template.getSchema(),
-                words: words.map(w => ({word: w.word, id: w.id})),
-                level: user.level
+            generatedTask = await this.llmService.getStructuredResponse(
+                template.prompt,
+                template.getSchema(),
+                {
+                    schema: template.getSchema(),
+                    words: words.map(w => ({word: w.word, id: w.id})),
+                    level: user.level
+                }
+            );
+            if (!generatedTask) throw new Error('Unable to generate task');
+
+            questions = this.taskToQuestions(generatedTask, template, words);
+
+            if (!questions.length) throw new Error('No valid questions were generated for this task:(');
+        } else {
+            switch (template.type){
+            case ExerciseType.TRANSLATION_MATCH: {
+                generatedTask = (template as ExerciseTemplate<ExerciseType.TRANSLATION_MATCH>).getSchema();
+                const shuffledOptions = this.shuffleArray(words.map((w, idx) => ({word: w, correct_answer_idx: idx})));
+                generatedTask.options = [shuffledOptions, words.map(w => w.translation!)];
+                questions = words.map((w, idx) => this.questionRepo.create({
+                    text: '',
+                    word: w,
+                    options: words.map(t => t.translation!),
+                    correct_idx: idx
+                }));
+                break;
             }
-        );
-        if (!generatedTask) throw new Error('Unable to generate task');
-
-        const questions = this.taskToQuestions(generatedTask, template, words);
-
-        if (!questions.length) throw new Error('No valid questions were generated for this task:(');
-
+            default: throw new Error(`Not implemented manual task generation for type ${template.type}`);
+            }
+        }
         // Create new exercise with selected template
         const newExercise = this.exerciseRepo.create({
             user_id: user.id,
@@ -100,13 +118,15 @@ export class ExercisesService {
         return this.randomPick(available_templates)[0];
     }
 
-    private async pickWords(user: User, max_count: number){
-        const available_words = await this.wordRepo.createQueryBuilder('w')
+    private async pickWords(user: User, max_count: number, requires_translation: boolean){
+        const available_words_qb = await this.wordRepo.createQueryBuilder('w')
             .leftJoin(Question, 'a', 'a.word_id = w.id AND a.is_correct')
             .addSelect('COUNT(a.id)', 'inverseWeight')
             .where('w.user_id = :user_id', {user_id: user.id})
-            .groupBy('w.id')
-            .getRawAndEntities();
+            .groupBy('w.id');
+
+        if (requires_translation) available_words_qb.andWhere('w.translation IS NOT NULL');
+        const available_words = await available_words_qb.getRawAndEntities();
 
         // available_templates.entities contains ExerciseTemplate[]
         // available_templates.raw contains count for each template as exerciseCount
@@ -181,9 +201,18 @@ export class ExercisesService {
         return Object.keys(ExerciseTemplate.TYPE_TO_SCHEMA_MAP[exercise_type]).every(k => k in generated);
     }
 
-    async handleAnswer(question_id: number, is_correct: boolean): Promise<{finished: false}|{finished: true, total: number, correct: number}> {
+    async handleAnswer(
+        question_id: number,
+        args: {is_correct?: boolean, option_idx?: number}
+    ): Promise<{finished: false, is_correct: boolean}|{finished: true, total: number, correct: number, is_correct: boolean}> {
         const question = await this.questionRepo.findOneOrFail({ where: { id: question_id } });
-        question.is_correct = is_correct;
+
+        if (args.is_correct !== undefined)
+            question.is_correct = args.is_correct;
+        else if (args.option_idx !== undefined){
+            question.is_correct = question.correct_idx === args.option_idx;
+        } else throw new Error('Either is_correct or option_idx must be defined');
+
         await this.questionRepo.save(question);
 
         const finished = !await this.questionRepo.exists({where: {exercise_id: question.exercise_id, is_correct: IsNull()}});
@@ -191,11 +220,36 @@ export class ExercisesService {
         if (finished) {
             await this.exerciseRepo.update({id: question.exercise_id}, {status: ExerciseStatus.ANSWERED});
             return {
+                is_correct: question.is_correct,
                 finished: true,
                 total: await this.questionRepo.countBy({exercise_id: question.exercise_id}),
                 correct: await this.questionRepo.countBy({exercise_id: question.exercise_id, is_correct: true})
             };
         }
-        return {finished};
+        return {finished, is_correct: question.is_correct};
+    }
+
+    /**
+     * Shuffles and modifies original array
+     * @param array
+     * @returns
+     */
+    private shuffleArray<T>(array: T[]): T[]{
+
+        let currentIndex = array.length;
+
+        // While there remain elements to shuffle...
+        while (currentIndex != 0) {
+
+            // Pick a remaining element...
+            let randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+
+            // And swap it with the current element.
+            [array[currentIndex], array[randomIndex]] = [
+                array[randomIndex], array[currentIndex]
+            ];
+        }
+        return array;
     }
 }
