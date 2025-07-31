@@ -24,10 +24,10 @@ export class ExerciseTemplate<T extends ExerciseType> extends BaseEntity{
         [ExerciseType.TRANSLATION_MATCH]: {
             question: 'Сопоставь слова с их переводом',
             options: [
-                [{word: {}, correct_answer_idx: 0}],
-                ['RUSSIAN']
+                [],
+                []
             ],
-        } as {question: string, options: [{word: Word, correct_answer_idx: number}[], string[]]}
+        } as {question: string, options: [{id: number, word: {id: number, word: string, translation: string}}[], string[]]}
     } satisfies {
         [k in ExerciseType]: Record<string, any>
     };

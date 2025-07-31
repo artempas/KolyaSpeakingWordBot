@@ -51,10 +51,9 @@ export class ExercisesService {
         const words = await this.pickWords(user, template.max_words, template.requires_translation);
 
         console.log('Picked words: ', words);
-        let generatedTask, questions: Question[];
         if (template.prompt){
 
-            generatedTask = await this.llmService.getStructuredResponse(
+            const generatedTask = await this.llmService.getStructuredResponse(
                 template.prompt,
                 template.getSchema(),
                 {
@@ -65,35 +64,43 @@ export class ExercisesService {
             );
             if (!generatedTask) throw new Error('Unable to generate task');
 
-            questions = this.taskToQuestions(generatedTask, template, words);
-
+            const questions = this.taskToQuestions(generatedTask, template, words);
             if (!questions.length) throw new Error('No valid questions were generated for this task:(');
+
+            const newExercise = this.exerciseRepo.create({
+                user_id: user.id,
+                template: template,
+                generated: generatedTask,
+                status: ExerciseStatus.GENERATED,
+                questions
+            });
+            return await this.exerciseRepo.save(newExercise) as ExerciseFromTypeArray<T>;
+
         } else {
             switch (template.type){
             case ExerciseType.TRANSLATION_MATCH: {
-                generatedTask = (template as ExerciseTemplate<ExerciseType.TRANSLATION_MATCH>).getSchema();
-                const shuffledOptions = this.shuffleArray(words.map((w, idx) => ({word: w, correct_answer_idx: idx})));
-                generatedTask.options = [shuffledOptions, words.map(w => w.translation!)];
-                questions = words.map((w, idx) => this.questionRepo.create({
-                    text: '',
-                    word: w,
-                    options: words.map(t => t.translation!),
-                    correct_idx: idx
-                }));
-                break;
+                const generatedTask = (template as ExerciseTemplate<ExerciseType.TRANSLATION_MATCH>).getSchema();
+                const newExercise = this.exerciseRepo.create({
+                    user_id: user.id,
+                    template: template,
+                    generated: generatedTask,
+                    status: ExerciseStatus.GENERATED,
+                    questions: words.map((w, idx) => this.questionRepo.create({
+                        text: '',
+                        word: w,
+                        options: words.map(t => t.translation!),
+                        correct_idx: idx
+                    }))
+                });
+                await this.exerciseRepo.save(newExercise, {reload: true});
+                const shuffledQuestions = this.shuffleArray(newExercise.questions as (Question&{word: Word&{translation: string}})[]);
+                generatedTask.options = [shuffledQuestions, newExercise.questions.map(q => q.word.translation!)];
+                return await this.exerciseRepo.save(newExercise) as ExerciseFromTypeArray<T>;
             }
             default: throw new Error(`Not implemented manual task generation for type ${template.type}`);
             }
         }
-        // Create new exercise with selected template
-        const newExercise = this.exerciseRepo.create({
-            user_id: user.id,
-            template: template,
-            generated: generatedTask,
-            status: ExerciseStatus.GENERATED,
-            questions
-        });
-        return await this.exerciseRepo.save(newExercise) as ExerciseFromTypeArray<T>;
+
     }
 
     private async pickTemplate(user: User, min_words: number, type?: ExerciseType[]){

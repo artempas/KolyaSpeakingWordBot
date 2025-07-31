@@ -119,14 +119,18 @@ export class MatchingHandler implements HandlerInterface{
             throw new Error(`Not every question in exercise has same options. Exercise id: ${exercise.id}`);
         }
 
-        for (let idx = 0; idx < exercise.questions.length; idx++){
-            const question = exercise.questions[idx];
+        for (let idx = 0; idx < exercise.generated.options[0].length; idx++){
+            const question = exercise.generated.options[0][idx];
             let question_button: InlineKeyboardButton;
             let option_button: InlineKeyboardButton;
 
-            if (question.is_correct){
+            const db_question = exercise.questions.find(q => q.id === question.id);
+
+            if (!db_question) throw new Error('Question not found in db');
+
+            if (db_question.is_correct){
                 question_button = {text: this.CORRECT_ANSWER_TEXT, callback_data: this.CORRECT_ANSWER_TEXT};
-            } else if (question.is_correct === false){
+            } else if (db_question.is_correct === false){
                 question_button = {text: this.INCORRECT_ANSWER_TEXT, callback_data: this.INCORRECT_ANSWER_TEXT};
             } else if (context.question_selected_id === question.id){
                 question_button = {text: '🔘' + question.word.word, callback_data: `qid:${question.id}`};
