@@ -1,12 +1,13 @@
 export enum Position {
-  MENU = 'MENU',
-  VOCABULARY = 'VOCABULARY',
-  ADD_WORD = 'ADD_WORD',
-  REMOVE_WORD = 'REMOVE_WORD',
-  EXERCISE = 'EXERCISE',
-  SETTINGS = 'SETTINGS',
-  MULTIPLE_CHOICE = 'MULTIPLE_CHOICE',
-  MATCHING = 'MATCHING'
+    START = 'START',
+    MENU = 'MENU',
+    VOCABULARY = 'VOCABULARY',
+    ADD_WORD = 'ADD_WORD',
+    REMOVE_WORD = 'REMOVE_WORD',
+    EXERCISE = 'EXERCISE',
+    SETTINGS = 'SETTINGS',
+    MULTIPLE_CHOICE = 'MULTIPLE_CHOICE',
+    MATCHING = 'MATCHING'
 }
 
 export enum UserLevel {
@@ -16,6 +17,12 @@ export enum UserLevel {
     B2 = 'B2',
     C1 = 'C1',
     C2 = 'C2'
+}
+
+export enum OnboardingSteps {
+    HELLO,
+    ASK_LEVEL,
+    ADD_WORDS
 }
 
 export enum ExerciseType {

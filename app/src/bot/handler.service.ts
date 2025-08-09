@@ -3,7 +3,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { CallbackQuery, Message as TelegramMessage, Metadata} from 'node-telegram-bot-api';
-import { AddWordHandler, MatchingHandler, MenuHandler, MultipleChoiceHandler, RemoveWordHandler, SettingsHandler, VocabularyHandler } from './handlers';
+import {
+    AddWordHandler,
+    MatchingHandler,
+    MenuHandler,
+    MultipleChoiceHandler,
+    RemoveWordHandler,
+    SettingsHandler,
+    StartHandler,
+    VocabularyHandler
+} from './handlers';
 import { ExtendedCallbackQuery, ExtendedMessage } from './types';
 import { BotService } from './bot.service';
 import { User, Message, MessageDirection } from '@kolya-quizlet/entity';
@@ -18,14 +27,15 @@ export class HandlerService {
 
     constructor(
         private readonly bot: BotService,
-        private readonly menuHandler: MenuHandler,
-        private readonly vocabularyHandler: VocabularyHandler,
-        private readonly addWordHandler: AddWordHandler,
-        private readonly removeWordHandler: RemoveWordHandler,
-        private readonly exerciseHandler: ExerciseHandler,
-        private readonly settingsHandler: SettingsHandler,
-        private readonly multipleChoice: MultipleChoiceHandler,
-        private readonly matching: MatchingHandler,
+        private readonly _menuHandler: MenuHandler,
+        private readonly _vocabularyHandler: VocabularyHandler,
+        private readonly _addWordHandler: AddWordHandler,
+        private readonly _removeWordHandler: RemoveWordHandler,
+        private readonly _exerciseHandler: ExerciseHandler,
+        private readonly _settingsHandler: SettingsHandler,
+        private readonly _multipleChoice: MultipleChoiceHandler,
+        private readonly _start: StartHandler,
+        private readonly _matching: MatchingHandler,
 
         @Inject() private readonly userService: UsersService,
 

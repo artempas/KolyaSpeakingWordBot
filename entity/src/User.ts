@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, OneToMany, BaseEntity } from 't
 import { Word } from './Word';
 import { Message } from './Message';
 import { Exercise } from './Exercise';
-import { ExerciseType, Position, UserLevel } from './enums';
+import { ExerciseType, OnboardingSteps, Position, UserLevel } from './enums';
 
 
 export type AddWordContextData = {
@@ -19,10 +19,15 @@ export type MatchingContextData = {
     current_exercise_id: number
 }
 
+export type StartContextData = {
+    step: OnboardingSteps
+}
+
 export type ContextData<P extends Position> =
       P extends 'ADD_WORD' ? AddWordContextData
     : P extends 'REMOVE_WORD' ? RemoveWordContextData
     : P extends 'MATCHING' ? MatchingContextData
+    : P extends 'START' ? StartContextData
     : Record<never, never>;
 
 @Entity()
@@ -51,7 +56,7 @@ export class User extends BaseEntity {
         type: 'enum',
         enum: Position,
         array: true,
-        default: [Position.MENU],
+        default: [Position.START],
     })
     position: Position[];
 

@@ -1,7 +1,17 @@
 import { Module } from '@nestjs/common';
 import { HandlerService } from './handler.service';
 import { BotController } from './bot.controller';
-import { AddWordHandler, ExerciseHandler, MatchingHandler, MenuHandler, MultipleChoiceHandler, RemoveWordHandler, SettingsHandler, VocabularyHandler } from './handlers';
+import {
+    AddWordHandler,
+    ExerciseHandler,
+    MatchingHandler,
+    MenuHandler,
+    MultipleChoiceHandler,
+    RemoveWordHandler,
+    SettingsHandler,
+    StartHandler,
+    VocabularyHandler
+} from './handlers';
 import { BotService } from './bot.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ExerciseTemplate, Message, User, Word } from '@kolya-quizlet/entity';
@@ -28,6 +38,7 @@ import { WordsModule } from 'words/words.module';
         MultipleChoiceHandler,
         RemoveWordHandler,
         SettingsHandler,
+        StartHandler,
         VocabularyHandler,
     ],
     controllers: [BotController]

@@ -12,8 +12,16 @@ export class UsersService {
         @InjectRepository(User) private readonly userRepo: Repository<User>
     ){}
 
-    goTo(user: User, position: Position){
-        user.position.push(position);
+    goTo(user: User, position: Position|Position[], options?:{
+        rewrite?: boolean
+    }){
+        if (options?.rewrite){
+            if (Array.isArray(position)) user.position = position;
+            else user.position = [position];
+        } else {
+            if (Array.isArray(position)) user.position.concat(position);
+            else user.position.push(position);
+        }
     }
 
     goBack(user:User){
