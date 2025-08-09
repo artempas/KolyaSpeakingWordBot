@@ -68,13 +68,14 @@ export class StartHandler implements HandlerInterface{
 
     private async handleWordsQuery(query: ExtendedCallbackQuery, user: User): Promise<boolean> {
         const answer = query.data;
-        if (answer === '1'){
+        if (answer === '1') {
             this.userService.goTo(user, Position.ADD_WORD);
             return true;
-        } else {
+        } else if (answer === '0') {
             user.context.START!.step++;
+            return true;
         }
-        return false;
+        return this.sendStep(user);
     }
 
     private async askLevel(user: User){
@@ -82,6 +83,7 @@ export class StartHandler implements HandlerInterface{
             user,
             KEYS.ASK_LEVEL_MSG(),
             {
+                parse_mode: 'HTML',
                 reply_markup: {
                     inline_keyboard: buildKeyboard(
                         Object.entries(UserLevel).map(([k, v]) => ({text: k, callback_data: v}))
@@ -98,7 +100,7 @@ export class StartHandler implements HandlerInterface{
         if (this.isLevelQuery(data)) {
             user.level = data;
             user.context.START!.step++;
-            await this.bot.editMessageText(KEYS.ASK_LEVEL_MSG(data), {parse_mode: 'HTML', reply_markup: undefined});
+            await this.bot.editMessageText(KEYS.ASK_LEVEL_MSG(data), {chat_id: user.telegram_id, message_id: query.message?.message_id, parse_mode: 'HTML', reply_markup: undefined});
             return true;
         } else {
             this.bot.answerCallbackQueryIfNotAnswered(query, {text: '❌Отвечай кнопками с последнего сообщения', show_alert: true});
