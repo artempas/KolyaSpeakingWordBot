@@ -7,7 +7,7 @@ import {
     AddWordHandler,
     MatchingHandler,
     MenuHandler,
-    MultipleChoiceHandler,
+    ChoiceHandler,
     RemoveWordHandler,
     SettingsHandler,
     StartHandler,
@@ -33,7 +33,7 @@ export class HandlerService {
         private readonly _removeWordHandler: RemoveWordHandler,
         private readonly _exerciseHandler: ExerciseHandler,
         private readonly _settingsHandler: SettingsHandler,
-        private readonly _multipleChoice: MultipleChoiceHandler,
+        private readonly _multipleChoice: ChoiceHandler,
         private readonly _start: StartHandler,
         private readonly _matching: MatchingHandler,
 

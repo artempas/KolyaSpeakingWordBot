@@ -1,36 +1,56 @@
-import { BaseEntity, Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { BaseEntity, Column, Entity, OneToMany, PrimaryGeneratedColumn, SaveOptions } from 'typeorm';
 import { Exercise } from './Exercise';
 import { ExerciseType, UserLevel } from './enums';
 import { Word } from './Word';
+import { z } from 'zod';
 
 
 export type ReplaceableValues = 'words'|'level' | 'schema';
 
-@Entity()
-export class ExerciseTemplate<T extends ExerciseType> extends BaseEntity{
+export enum QuestionSource {
+    WORD = 'word',
+    TRANSLATION = 'translation'
+}
 
-    static TYPE_TO_SCHEMA_MAP = {
-        [ExerciseType.MULTIPLE_CHOICE]: {
-            "question":"Вопрос про слово",
-            "options":[
-                "A",
-                "B",
-                "C",
-                "D"
-            ],
-            "correct_answer_index": 0
-        }, 
-        [ExerciseType.TEXT_WITH_MULTIPLE_CHOICE]: {"text":"Yesterday, I read an interesting article in the newspaper about how technology has changed the way people spend their holiday. It mentioned a family who decided to embark on a journey to a remote mountain instead of going to the beach. They used the internet to find a unique program that combines education with adventure. The program was designed by a doctor from a well-known university, aiming to teach children about the ecosystem through hands-on activities. The article highlighted how this innovative system of learning outside the traditional school environment can enhance knowledge. It also featured a photo of the family sitting on a chair near a window, deeply engaged in a book about local wildlife. The story made me think about how much office workers miss by not stepping out of their routine.","multiple_choice_questions":[{"options":["Internet","Newspaper","Technology","Education"],"question":"What has changed the way people spend their holiday according to the text?","correct_answer_index":2,"word_id":12},{"options":["Beach","Mountain","University","Office"],"question":"Where did the family decide to go for their holiday?","correct_answer_index":1,"word_id":28},{"options":["Book","Internet","Newspaper","School"],"question":"What did the family use to find their holiday program?","correct_answer_index":1,"word_id":12},{"options":["Teacher","Doctor","Family","People"],"question":"Who designed the program the family participated in?","correct_answer_index":1,"word_id":7},{"options":["School","University","Office","Mountain"],"question":"Where was the doctor from?","correct_answer_index":1,"word_id":24}]},
-        [ExerciseType.TRANSLATION_MATCH]: {
-            question: 'Сопоставь слова с их переводом',
-            options: [
-                [],
-                []
-            ],
-        } as {question: string, options: [{id: number, word: {id: number, word: string, translation: string}}[], string[]]}
-    } satisfies {
-        [k in ExerciseType]: Record<string, any>
-    };
+export enum GenerationType {
+    MANUAL = 'manual',
+    TEXT_LLM = 'text_llm'
+}
+
+
+@Entity()
+export class ExerciseTemplate<EType extends ExerciseType, GType extends GenerationType> extends BaseEntity{
+
+    static SCHEMA_ZOD_MAP = {
+        [ExerciseType.CHOICES]: z.object({
+            text: z.string().optional(),
+            questions: z.array(z.object({
+                question: z.string(),
+                correct_index: z.number(),
+                options: z.array(z.string()),
+                word_id: z.number()
+            })),
+        }),
+        [ExerciseType.MATCH]: z.object({
+            question: z.string(),
+            options: z.array(z.object({
+                a: z.string(),
+                b: z.string(),
+                word_id: z.number()
+            })),
+        }),
+        [ExerciseType.ANSWER]: z.object({
+            question: z.string(),
+            answer: z.string(),
+            word_id: z.number()
+        }),
+        [ExerciseType.CHOICE]: z.object({
+            question: z.string(),
+            correct_index: z.number(),
+            options: z.array(z.string()),
+            word_id: z.number().optional()
+        }),
+    } as const;
 
     @PrimaryGeneratedColumn()
     id: number;
@@ -38,11 +58,27 @@ export class ExerciseTemplate<T extends ExerciseType> extends BaseEntity{
     @Column({default: 'DefaultExerciseName'})
     name: string;
 
-    @Column({nullable: true})
-    prompt?: string;
+    @Column({nullable: true, type: 'varchar'})
+    prompt: GType extends GenerationType.TEXT_LLM ? string : null;
 
-    @Column({default: false})
-    requires_translation: boolean
+    @Column({nullable: true, type: 'json', array: true})
+    examples: GType extends GenerationType.TEXT_LLM ? z.infer<typeof ExerciseTemplate.SCHEMA_ZOD_MAP[EType]>[] : null;
+
+    @Column({type: 'enum', enum: GenerationType, enumName: 'GenerationType', default: GenerationType.TEXT_LLM})
+    generation_type: GType;
+    
+    get requires_translation(){
+        return this.question_source === QuestionSource.TRANSLATION || this.answer_source === QuestionSource.TRANSLATION
+    }
+
+    @Column({type: 'enum', enum: QuestionSource, enumName: 'QuestionSource', nullable: true})
+    question_source: GType extends GenerationType.MANUAL ? QuestionSource : null;
+
+    @Column({type: 'enum', enum: QuestionSource, enumName: 'QuestionSource', nullable: true})
+    answer_source: GType extends GenerationType.MANUAL ? QuestionSource : null;
+
+    @Column({default: ''})
+    question_text: string;
 
     @Column({nullable: true})
     min_words?: number;
@@ -57,12 +93,44 @@ export class ExerciseTemplate<T extends ExerciseType> extends BaseEntity{
     available_levels: UserLevel[];
 
     @Column({enum: ExerciseType, type: 'enum', enumName: 'ExerciseType'})
-    type: T;
+    type: EType;
 
-    getSchema(): typeof ExerciseTemplate.TYPE_TO_SCHEMA_MAP[T]{
-        return ExerciseTemplate.TYPE_TO_SCHEMA_MAP[this.type];
+    isOfType<ET extends ExerciseType>(type: ET): this is ExerciseTemplate<ET, typeof this.generation_type>{
+        return this.type as ExerciseType === type as ExerciseType;
+    }
+
+    getSchema(): typeof ExerciseTemplate.SCHEMA_ZOD_MAP[EType]{
+        return ExerciseTemplate.SCHEMA_ZOD_MAP[this.type];
+    }
+
+    isLlmTemplate(): this is ExerciseTemplate<EType, GenerationType.TEXT_LLM>{
+        return this.generation_type === GenerationType.TEXT_LLM; 
+    }
+
+    isManualTemplate(): this is ExerciseTemplate<EType, GenerationType.MANUAL>{
+        return this.generation_type === GenerationType.MANUAL; 
     }
 
     @OneToMany(() => Exercise, e => e.user)
-    exercises: Exercise<T>[];
+    exercises: Exercise<EType>[];
+
+    save(options?: SaveOptions): Promise<this> {
+        if (this.generation_type === GenerationType.TEXT_LLM){
+            this.examples = this.examples?.map(obj => ExerciseTemplate.SCHEMA_ZOD_MAP[this.type].parse(obj)) as GType extends GenerationType.TEXT_LLM ? z.infer<typeof ExerciseTemplate.SCHEMA_ZOD_MAP[EType]>[] : null;
+            if (!(
+                this.examples?.length
+                && this.prompt
+                && !this.question_source
+                && !this.answer_source
+            )) throw new Error('Incorrect template configuration');
+        }
+        if (this.generation_type === GenerationType.MANUAL){
+            if (!(
+                !this.prompt
+                && this.question_source
+                && this.answer_source
+            )) throw new Error('Incorrect template configuration');
+        }
+        return super.save(options)
+    }
 }

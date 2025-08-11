@@ -1,4 +1,4 @@
-import { ExerciseTemplate, ExerciseType, Exercise, Word, ExerciseStatus, User, Question } from '@kolya-quizlet/entity';
+import { ExerciseTemplate, ExerciseType, Exercise, Word, ExerciseStatus, User, Question, GenerationType, QuestionSource } from '@kolya-quizlet/entity';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LlmService } from 'llm/llm.service';
@@ -10,7 +10,7 @@ export class ExercisesService {
     constructor(
         @Inject() private readonly llmService: LlmService,
 
-        @InjectRepository(ExerciseTemplate) private readonly exerciseTemplateRepo: Repository<ExerciseTemplate<ExerciseType>>,
+        @InjectRepository(ExerciseTemplate) private readonly exerciseTemplateRepo: Repository<ExerciseTemplate<ExerciseType, GenerationType>>,
         @InjectRepository(Exercise) private readonly exerciseRepo: Repository<Exercise<ExerciseType>>,
         @InjectRepository(Question) private readonly questionRepo: Repository<Question>,
         @InjectRepository(Word) private readonly wordRepo: Repository<Word>
@@ -51,7 +51,7 @@ export class ExercisesService {
         const words = await this.pickWords(user, template.max_words, template.requires_translation);
 
         console.log('Picked words: ', words);
-        if (template.prompt){
+        if (template.isLlmTemplate()){
 
             const generatedTask = await this.llmService.getStructuredResponse(
                 template.prompt,
@@ -77,29 +77,31 @@ export class ExercisesService {
             return await this.exerciseRepo.save(newExercise) as ExerciseFromTypeArray<T>;
 
         } else {
-            switch (template.type){
-            case ExerciseType.TRANSLATION_MATCH: {
-                const generatedTask = (template as ExerciseTemplate<ExerciseType.TRANSLATION_MATCH>).getSchema();
-                const newExercise = this.exerciseRepo.create({
-                    user_id: user.id,
-                    template: template,
-                    generated: generatedTask,
-                    status: ExerciseStatus.GENERATED,
-                    questions: words.map((w, idx) => this.questionRepo.create({
-                        text: '',
-                        word: w,
-                        options: words.map(t => t.translation!),
-                        correct_idx: idx
+            if (template.isOfType(ExerciseType.MATCH)){
+                const generatedTask = template.getSchema();
+                const newExercise = new Exercise<ExerciseType.MATCH>();
+                newExercise.user_id = user.id;
+                newExercise.template = template;
+                newExercise.generated = {
+                    question: template.question_text,
+                    options: words.map(word => ({
+                        a: template.question_source === QuestionSource.TRANSLATION ? word.translation! : word.word,
+                        b: template.question_source === QuestionSource.TRANSLATION ? word.translation! : word.word,
+                        word_id: word.id
                     }))
-                });
-                await this.exerciseRepo.save(newExercise, {reload: true});
-                const shuffledQuestions = this.shuffleArray(newExercise.questions as (Question&{word: Word&{translation: string}})[]);
-                generatedTask.options = [shuffledQuestions, newExercise.questions.map(q => q.word.translation!)];
+                };
+                newExercise.status = ExerciseStatus.GENERATED;
+                newExercise.questions = words.map((w, idx) => this.questionRepo.create({
+                    word: w,
+                    options: [w.translation!],
+                    text: template.question_text,
+                    correct_idx: idx
+                }));
+                await newExercise.save({reload: true});
                 return await this.exerciseRepo.save(newExercise) as ExerciseFromTypeArray<T>;
-            }
-            default: throw new Error(`Not implemented manual task generation for type ${template.type}`);
-            }
+            } else throw new Error(`Not implemented manual task generation for type ${template.type}`);
         }
+
 
     }
 
@@ -164,48 +166,42 @@ export class ExercisesService {
         return Array.from(pickedIndices).map(i => elements[i]);
     }
 
-    private taskToQuestions(generatedTask: any, template: ExerciseTemplate<ExerciseType>, pickedWords: Word[]): Question[]{
-        switch (template.type){
-        case ExerciseType.MULTIPLE_CHOICE:
-            if (this.isOfExerciseType(generatedTask, ExerciseType.MULTIPLE_CHOICE)){
+    private taskToQuestions(generatedTask: any, template: ExerciseTemplate<ExerciseType, GenerationType.TEXT_LLM>, pickedWords: Word[]): Question[]{
+        if (template.isOfType(ExerciseType.CHOICE)){
+            const parsedTask = template.getSchema().parse(generatedTask);
+
+            const word = pickedWords.find(
+                word => word.word.toLowerCase() === generatedTask.options[generatedTask.correct_answer_index].toLowerCase()
+            );
+            return [this.questionRepo.create({
+                word: word,
+                options: parsedTask.options,
+                correct_idx: parsedTask.correct_index
+            })];
+
+        } else if (template.isOfType(ExerciseType.CHOICES)){
+            const parsedTask = template.getSchema().parse(generatedTask);
+            const result: Question[] = [];
+            for (const question of parsedTask.questions){
                 const word = pickedWords.find(
-                    word => word.word.toLowerCase() === generatedTask.options[generatedTask.correct_answer_index].toLowerCase()
+                    w => w.id === question.word_id
                 );
-                return [this.questionRepo.create({
-                    word: word,
-                    options: generatedTask.options,
-                    correct_idx: generatedTask.correct_answer_index
-                })];
-            } else
-                throw Error(`Generated task has wrong schema. Exercise type: ${template.type}, generated: ${JSON.stringify(generatedTask)}`);
-        case ExerciseType.TEXT_WITH_MULTIPLE_CHOICE:
-            if (this.isOfExerciseType(generatedTask, ExerciseType.TEXT_WITH_MULTIPLE_CHOICE)){
-                const result: Question[] = [];
-                for (const question of generatedTask.multiple_choice_questions){
-                    const word = pickedWords.find(
-                        w => w.id === question.word_id
-                    );
-                    if (word)
-                        result.push(this.questionRepo.create({
-                            text: question.question,
-                            word,
-                            options: question.options,
-                            correct_idx: question.correct_answer_index
-                        }));
-                    else {
-                        console.log(`Question about word "${question.options[question.correct_answer_index]}" is discarded bcs no such word was given to AI. List of given words: ${pickedWords.map(w => w.word).join(',')}`);
-                    }
+                if (word)
+                    result.push(this.questionRepo.create({
+                        text: question.question,
+                        word,
+                        options: question.options,
+                        correct_idx: question.correct_index
+                    }));
+                else {
+                    console.log(`Question about word "${question.options[question.correct_index]}" is discarded bcs no such word was given to AI. List of given words: ${pickedWords.map(w => w.word).join(',')}`);
                 }
-                return result;
-            } else
-                throw Error(`Generated task has wrong schema. Exercise type: ${template.type}, generated: ${JSON.stringify(generatedTask)}`);
-        default:
+            }
+            return result;
+
+        } else {
             throw Error('Unknown ExerciseType');
         }
-    }
-
-    isOfExerciseType<T extends ExerciseType>(generated: any, exercise_type: T): generated is typeof ExerciseTemplate['TYPE_TO_SCHEMA_MAP'][T]{
-        return Object.keys(ExerciseTemplate.TYPE_TO_SCHEMA_MAP[exercise_type]).every(k => k in generated);
     }
 
     async handleAnswer(
@@ -234,29 +230,5 @@ export class ExercisesService {
             };
         }
         return {finished, is_correct: question.is_correct};
-    }
-
-    /**
-     * Shuffles and modifies original array
-     * @param array
-     * @returns
-     */
-    private shuffleArray<T>(array: T[]): T[]{
-
-        let currentIndex = array.length;
-
-        // While there remain elements to shuffle...
-        while (currentIndex != 0) {
-
-            // Pick a remaining element...
-            let randomIndex = Math.floor(Math.random() * currentIndex);
-            currentIndex--;
-
-            // And swap it with the current element.
-            [array[currentIndex], array[randomIndex]] = [
-                array[randomIndex], array[currentIndex]
-            ];
-        }
-        return array;
     }
 }

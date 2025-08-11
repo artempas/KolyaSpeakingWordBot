@@ -2,12 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { CallbackQuery, Message } from 'node-telegram-bot-api';
 import { HandlerInterface } from '../interface';
 import { BotService } from '../../bot.service';
-import { Exercise, ExerciseTemplate, ExerciseType, Position, User } from '@kolya-quizlet/entity';
+import { Exercise, ExerciseTemplate, ExerciseType, GenerationType, Position, User } from '@kolya-quizlet/entity';
 import { UsersService } from 'users/users.service';
 import { PositionHandler } from '../../handler.decorator';
 import { ExercisesService } from 'exercises/exercises.service';
 import { ArrayContains, EntityNotFoundError, Repository } from 'typeorm';
-import { MultipleChoiceHandler } from './multipleChoiceHandler.service';
+import { ChoiceHandler } from './choiceHandler.service';
 import { ExtendedMessage } from 'bot/types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { buildKeyboard } from 'bot/utils';
@@ -21,8 +21,8 @@ export class ExerciseHandler implements HandlerInterface{
     constructor(
         @Inject() private readonly userService: UsersService,
         @Inject() private readonly exerciseService: ExercisesService,
-        @InjectRepository(ExerciseTemplate) private readonly exerciseTemplateRepo: Repository<ExerciseTemplate<ExerciseType>>,
-        private readonly multipleChoiceHandler: MultipleChoiceHandler,
+        @InjectRepository(ExerciseTemplate) private readonly exerciseTemplateRepo: Repository<ExerciseTemplate<ExerciseType, GenerationType>>,
+        private readonly multipleChoiceHandler: ChoiceHandler,
         private readonly matchingHandler: MatchingHandler,
         private readonly bot: BotService
     ){}
@@ -96,21 +96,19 @@ export class ExerciseHandler implements HandlerInterface{
             }
             throw e;
         }
-        switch (exercise.template?.type){
-        case ExerciseType.MULTIPLE_CHOICE:
-        case ExerciseType.TEXT_WITH_MULTIPLE_CHOICE:
+        if (exercise.isOfType(ExerciseType.CHOICE) || exercise.isOfType(ExerciseType.CHOICES)){
             this.userService.goTo(user, Position.MULTIPLE_CHOICE);
             return await this.multipleChoiceHandler.sendExercise(
                 user,
-                exercise as Exercise<ExerciseType.MULTIPLE_CHOICE>|Exercise<ExerciseType.TEXT_WITH_MULTIPLE_CHOICE>
+                exercise
             );
-        case ExerciseType.TRANSLATION_MATCH:
+        } else if (exercise.isOfType(ExerciseType.MATCH)){
             this.userService.goTo(user, Position.MATCHING);
             return await this.matchingHandler.sendExercise(
                 user,
-                {exercise: exercise as Exercise<ExerciseType.TRANSLATION_MATCH>}
+                {exercise}
             );
-        default:
+        } else {
             throw new Error('Not implemented');
         }
     }

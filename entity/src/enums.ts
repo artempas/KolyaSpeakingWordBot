@@ -26,9 +26,10 @@ export enum OnboardingSteps {
 }
 
 export enum ExerciseType {
-    TEXT_WITH_MULTIPLE_CHOICE = 'text_with_multiple_choice',
-    MULTIPLE_CHOICE = 'multiple_choice',
-    TRANSLATION_MATCH = 'translation_match'
+    CHOICES = 'choices',
+    MATCH = 'match',
+    ANSWER = 'answer',
+    CHOICE = 'choice'
 }
 
 export enum ExerciseStatus {

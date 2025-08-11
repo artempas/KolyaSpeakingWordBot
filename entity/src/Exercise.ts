@@ -1,8 +1,11 @@
 import { BaseEntity, Column, CreateDateColumn, Entity, ForeignKey, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { User } from './User';
-import { ExerciseTemplate } from './ExerciseTemplate';
+import { ExerciseTemplate, GenerationType } from './ExerciseTemplate';
 import { Question } from './Question';
 import { ExerciseStatus, ExerciseType } from './enums';
+import z from 'zod';
+
+type a = z.infer<typeof ExerciseTemplate.SCHEMA_ZOD_MAP[ExerciseType.MATCH]>
 
 @Entity()
 export class Exercise<T extends ExerciseType> extends BaseEntity{
@@ -20,7 +23,7 @@ export class Exercise<T extends ExerciseType> extends BaseEntity{
     status: ExerciseStatus;
 
     @Column({type: 'jsonb'})
-    generated: typeof ExerciseTemplate.TYPE_TO_SCHEMA_MAP[T];
+    generated: z.infer<typeof ExerciseTemplate.SCHEMA_ZOD_MAP[T]>;
 
     @ManyToOne(() => User, user => user.exercises, {onDelete: 'CASCADE', onUpdate: 'CASCADE'})
     @JoinColumn({name: 'user_id', referencedColumnName: 'id'})
@@ -28,7 +31,11 @@ export class Exercise<T extends ExerciseType> extends BaseEntity{
 
     @ManyToOne(() => ExerciseTemplate, t => t.exercises, {onDelete: 'SET NULL', onUpdate: 'SET NULL'})
     @JoinColumn({name: 'template_id', referencedColumnName: 'id'})
-    template: ExerciseTemplate<T> | null;
+    template: ExerciseTemplate<T, GenerationType> | null;
+
+    isOfType<T extends ExerciseType>(type: T): this is Exercise<T>{
+        return this.template?.type as ExerciseType === type as ExerciseType;
+    }
 
     @OneToMany(() => Question, a => a.exercise, {cascade: true})
     questions: Question[];

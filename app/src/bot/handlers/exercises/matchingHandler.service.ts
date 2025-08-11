@@ -40,16 +40,17 @@ export class MatchingHandler implements HandlerInterface{
             case 'option':
                 return await this.handleOptionSelection(user, query, parsedQuery.idx);
             case 'question':
-                return await this.handleQuestionSelection(user, query, parsedQuery.id);
+                return await this.handleQuestionSelection(user, query, parsedQuery.id, parsedQuery.idx);
             case 'accept':
                 return await this.handleAnswer(query, user);
             }
         }
     }
 
-    private handleQuestionSelection(user: User, query: CallbackQuery, id: number): boolean | PromiseLike<boolean> {
+    private handleQuestionSelection(user: User, query: CallbackQuery, id: number, idx: number): boolean | PromiseLike<boolean> {
         if (user.context.MATCHING?.question_selected_id !== id){
             user.context.MATCHING!.question_selected_id = id;
+            user.context.MATCHING!.question_selected_idx = idx;
             return this.sendExercise(user, {message_id: query.message?.message_id});
         }
         return false;
@@ -68,17 +69,24 @@ export class MatchingHandler implements HandlerInterface{
         return false;
     }
 
-    private prepareContext(user: User, exercise_id: number){
-        if (!user.context.MATCHING) user.context.MATCHING = {current_exercise_id: exercise_id};
+    private prepareContext(user: User, exercise: Exercise<ExerciseType.MATCH>){
+        if (!user.context.MATCHING) {
+            const length = exercise.questions.length;
+            const shuffling_pattern = Array.from({length}, (_, i) => i).sort(() => Math.random() - 0.5);
+            user.context.MATCHING = {
+                current_exercise_id: exercise.id,
+                shuffling_pattern,
+            };
+        }
     }
 
-    async sendExercise(user: User, kwargs?: {exercise?: Exercise<ExerciseType.TRANSLATION_MATCH>, message_id?:number}){
+    async sendExercise(user: User, kwargs?: {exercise?: Exercise<ExerciseType.MATCH>, message_id?:number}){
         let exercise = kwargs?.exercise;
         if (!exercise){
             try {
                 exercise = await this.exerciseService.getNextExercise(
                     user,
-                    {type: [ExerciseType.TRANSLATION_MATCH] as const, id: user.context?.MATCHING?.current_exercise_id}
+                    {type: [ExerciseType.MATCH] as const, id: user.context?.MATCHING?.current_exercise_id}
                 );
             } catch (e: any){
                 if (e instanceof EntityNotFoundError){
@@ -91,7 +99,7 @@ export class MatchingHandler implements HandlerInterface{
                 throw e;
             }
         }
-        this.prepareContext(user, exercise.id);
+        this.prepareContext(user, exercise);
 
         const message = this.exerciseToMessage(exercise, user.context.MATCHING!);
 
@@ -109,43 +117,42 @@ export class MatchingHandler implements HandlerInterface{
     }
 
     private exerciseToMessage(
-        exercise: Exercise<ExerciseType.TRANSLATION_MATCH>|Exercise<ExerciseType.TRANSLATION_MATCH>,
+        exercise: Exercise<ExerciseType.MATCH>,
         context: MatchingContextData
     ): {text: string, options?: {reply_markup: InlineKeyboardMarkup}}{
         const keyboard: InlineKeyboardButton[][] = [];
-        const options = exercise.questions[0].options;
 
-        if (!exercise.questions.every(q => options.every((v, i) => q.options[i] === v))){
-            throw new Error(`Not every question in exercise has same options. Exercise id: ${exercise.id}`);
-        }
-
-        for (let idx = 0; idx < exercise.generated.options[0].length; idx++){
-            const question = exercise.generated.options[0][idx];
+        for (let idx = 0; idx < exercise.generated.options.length; idx++){
+            const question_option = exercise.generated.options[idx];
+            const answer_option = exercise.generated.options[context.shuffling_pattern[idx]];
             let question_button: InlineKeyboardButton;
             let option_button: InlineKeyboardButton;
 
-            const db_question = exercise.questions.find(q => q.id === question.id);
+            const current_question = exercise.questions.find(q => q.word_id === question_option.word_id);
 
-            if (!db_question) throw new Error('Question not found in db');
+            if (!current_question) throw new Error('Question not found in db');
 
-            if (db_question.is_correct){
+            if (current_question.is_correct){
                 question_button = {text: this.CORRECT_ANSWER_TEXT, callback_data: this.CORRECT_ANSWER_TEXT};
-            } else if (db_question.is_correct === false){
+            } else if (current_question.is_correct === false){
                 question_button = {text: this.INCORRECT_ANSWER_TEXT, callback_data: this.INCORRECT_ANSWER_TEXT};
-            } else if (context.question_selected_id === question.id){
-                question_button = {text: '🔘' + question.word.word, callback_data: `qid:${question.id}`};
+            } else if (context.question_selected_id === current_question.id){
+                question_button = {text: '🔘' + current_question.word.word, callback_data: `qid:${current_question.id}:idx:${idx}`};
             } else {
-                question_button = {text: '⚪️' + question.word.word, callback_data: `qid:${question.id}`};
+                question_button = {text: '⚪️' + current_question.word.word, callback_data: `qid:${current_question.id}:idx:${idx}`};
             }
 
-            if (exercise.questions.some(q => q.is_correct && q.correct_idx === idx)){
+            const current_answer = exercise.questions.find(q => q.word_id === answer_option.word_id);
+            if (!current_answer) throw new Error('Answer not found in db');
+
+            if (current_answer?.is_correct){
                 option_button = {text: this.CORRECT_ANSWER_TEXT, callback_data: this.CORRECT_ANSWER_TEXT};
             // } else if (context.wrong[1].includes(idx)){
             //     option_button = {text: this.INCORRECT_ANSWER_TEXT, callback_data: this.INCORRECT_ANSWER_TEXT};
             } else if (context.option_selected_idx === idx) {
-                option_button = {text: '🔘' + options[idx], callback_data: `ans:${idx}`};
+                option_button = {text: '🔘' + current_answer.options[0], callback_data: `ans:${idx}`};
             } else {
-                option_button = {text: '⚪️' + options[idx], callback_data: `ans:${idx}`};
+                option_button = {text: '⚪️' + current_answer.options[0], callback_data: `ans:${idx}`};
             }
 
             keyboard.push([question_button, option_button]);
@@ -156,10 +163,10 @@ export class MatchingHandler implements HandlerInterface{
 
     }
 
-    private parseCallbackQuery(query: string|undefined): {type: 'question', id: number}|{type: 'option', idx: number}|{type: 'accept'}|false {
+    private parseCallbackQuery(query: string|undefined): {type: 'question', id: number, idx: number}|{type: 'option', idx: number}|{type: 'accept'}|false {
         if (!query) return false;
-        const question_match = query.match(/^qid:(\d+)$/);
-        if (question_match) return {type: 'question', id: Number(question_match[1])};
+        const question_match = query.match(/^qid:(\d+):idx:(\d+)$/);
+        if (question_match) return {type: 'question', id: Number(question_match[1]), idx: Number(question_match[2])};
         const answer_match = query.match(/^ans:(\d+)$/);
         if (answer_match) return {type: 'option', idx: Number(answer_match[1])};
         if (query === 'accept') return {type: 'accept'};
@@ -167,15 +174,22 @@ export class MatchingHandler implements HandlerInterface{
     }
 
     private async handleAnswer(query: CallbackQuery, user: User): Promise<boolean> {
-        if (user.context.MATCHING?.question_selected_id === undefined || user.context.MATCHING.option_selected_idx === undefined){
+        if (
+            user.context.MATCHING?.question_selected_id === undefined
+            || user.context.MATCHING.option_selected_idx === undefined
+            || user.context.MATCHING?.question_selected_idx === undefined
+        ){
             await this.bot.answerCallbackQuery(query.id, {text: 'Сначала надо выбрать по одному варианту слева и справа', show_alert: true});
             return false;
         }
         let finished;
         try {
+            const qSelectedIdx = user.context.MATCHING.question_selected_idx;
+            const is_correct =
+                user.context.MATCHING.shuffling_pattern[qSelectedIdx] === user.context.MATCHING.option_selected_idx;
             finished = await this.exerciseService.handleAnswer(
                 user.context.MATCHING.question_selected_id,
-                {option_idx: user.context.MATCHING.option_selected_idx}
+                {is_correct}
             );
         } catch (e: any){
             if (e instanceof EntityNotFoundError){

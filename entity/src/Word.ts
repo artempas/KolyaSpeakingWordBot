@@ -17,10 +17,10 @@ export class Word extends BaseEntity {
     @Column()
     word: string;
 
-    @Column({ nullable: true })
+    @Column({ nullable: true, type: 'varchar' })
     meaning: string|null;
 
-    @Column({ nullable: true })
+    @Column({ nullable: true, type: 'varchar' })
     translation: string|null;
 
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })

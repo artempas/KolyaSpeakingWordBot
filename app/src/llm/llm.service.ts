@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { ExerciseTemplate, ExerciseType, ReplaceableValues } from '@kolya-quizlet/entity';
 import { ChatCompletionMessageParam } from 'openai/resources/index';
+import z from 'zod';
 
 @Injectable()
 export class LlmService {
@@ -30,11 +31,11 @@ export class LlmService {
 
     constructor(){}
 
-    async getStructuredResponse<T extends typeof ExerciseTemplate['TYPE_TO_SCHEMA_MAP'][ExerciseType]>(
+    async getStructuredResponse<T extends typeof ExerciseTemplate.SCHEMA_ZOD_MAP[ExerciseType]>(
         prompt: string,
         schema: T,
         variables: { [k in ReplaceableValues]: any }
-    ): Promise<T|null> {
+    ): Promise<z.infer<T>|null> {
         const replacedPrompt = prompt.replace(/\$\{(\w+)\}/g, (_, key) => {
             return JSON.stringify(variables[key as ReplaceableValues]) ?? '';
         });
@@ -64,7 +65,14 @@ export class LlmService {
 
             if (response?.choices?.[0]?.message?.content) {
                 console.log('Responded with', response.choices);
-                return JSON.parse(response.choices[0].message.content);
+                let parsed;
+                try {
+                    const jsonContent = JSON.parse(response.choices[0].message.content);
+                    parsed = schema.safeParse(jsonContent);
+                } catch (e) {
+                    parsed = { success: false };
+                }
+                if (parsed.success) return parsed.data;
             }
             attempts++;
         }

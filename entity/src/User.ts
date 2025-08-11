@@ -15,8 +15,10 @@ export type RemoveWordContextData = {
 
 export type MatchingContextData = {
     question_selected_id?: number,
+    question_selected_idx?: number,
     option_selected_idx?: number,
-    current_exercise_id: number
+    current_exercise_id: number,
+    shuffling_pattern: number[],
 }
 
 export type StartContextData = {

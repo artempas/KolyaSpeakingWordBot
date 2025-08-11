@@ -12,7 +12,7 @@ import { EntityNotFoundError } from 'typeorm';
 
 @Injectable()
 @PositionHandler(Position.MULTIPLE_CHOICE)
-export class MultipleChoiceHandler implements HandlerInterface{
+export class ChoiceHandler implements HandlerInterface{
 
     private readonly CORRECT_ANSWER_TEXT = '✅ Верно!';
 
@@ -46,16 +46,17 @@ export class MultipleChoiceHandler implements HandlerInterface{
         return false;
     }
 
-    async sendExercise(user: User, _exercise?: Exercise<ExerciseType.MULTIPLE_CHOICE>|Exercise<ExerciseType.TEXT_WITH_MULTIPLE_CHOICE>){
+    async sendExercise(user: User, _exercise?: Exercise<ExerciseType.CHOICES>|Exercise<ExerciseType.CHOICE>){
         let exercise = _exercise;
         if (!exercise){
             await this.bot.sendMessage(user, 'Хм, сейчас что-нибудь придумаю (⊙﹏⊙)');
             await this.bot.sendChatAction(user.telegram_id, 'typing');
             const typingInterval = setInterval(() => this.bot.sendChatAction(user.telegram_id, 'typing'), 5_000);
             try {
+                // TODO: refactor later so that next task is generated in exerciseHandler (to match template id)
                 exercise = await this.exerciseService.getNextExercise(
                     user,
-                    {type: [ExerciseType.MULTIPLE_CHOICE, ExerciseType.TEXT_WITH_MULTIPLE_CHOICE] as const}
+                    {type: [ExerciseType.CHOICE, ExerciseType.CHOICES] as const}
                 );
             } catch (e: any){
                 if (e instanceof EntityNotFoundError){
@@ -80,9 +81,9 @@ export class MultipleChoiceHandler implements HandlerInterface{
     }
 
     private exerciseToMessage(
-        exercise: Exercise<ExerciseType.MULTIPLE_CHOICE>|Exercise<ExerciseType.TEXT_WITH_MULTIPLE_CHOICE>
+        exercise: Exercise<ExerciseType.CHOICE>|Exercise<ExerciseType.CHOICES>
     ): {text: string, options?: SendMessageOptions}[]{
-        const messages: ReturnType<MultipleChoiceHandler['exerciseToMessage']> = [];
+        const messages: ReturnType<ChoiceHandler['exerciseToMessage']> = [];
 
 
         const parseMultipleChoice = (question: Question) => {
@@ -106,18 +107,12 @@ export class MultipleChoiceHandler implements HandlerInterface{
         };
 
 
-        switch (exercise.template?.type){
-        case ExerciseType.TEXT_WITH_MULTIPLE_CHOICE:
-            if (this.exerciseService.isOfExerciseType(exercise.generated, ExerciseType.TEXT_WITH_MULTIPLE_CHOICE)){
+        if (exercise.isOfType(ExerciseType.CHOICES)){
+            if (exercise.generated.text)
                 messages.push({text: exercise.generated.text});
-                messages.push(...exercise.questions.map(parseMultipleChoice));
-                break;
-            } else {
-                throw new Error('Wrong generated data');
-            }
-        case ExerciseType.MULTIPLE_CHOICE:
+            messages.push(...exercise.questions.map(parseMultipleChoice));
+        } else if (exercise.isOfType(ExerciseType.CHOICE)){
             messages.push(parseMultipleChoice(exercise.questions[0]));
-            break;
         }
         return messages;
     }

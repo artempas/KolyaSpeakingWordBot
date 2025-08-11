@@ -5,6 +5,6 @@ export * from './vocabulary/addWordHandler.service';
 export * from './vocabulary/removeWordHandler.service';
 export * from './settingsHandler.service';
 export * from './exercises/exerciseHandler.service';
-export * from './exercises/multipleChoiceHandler.service';
+export * from './exercises/choiceHandler.service';
 export * from './exercises/matchingHandler.service';
 export * from './start/startHandler.service';
