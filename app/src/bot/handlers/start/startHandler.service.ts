@@ -37,7 +37,7 @@ export class StartHandler implements HandlerInterface{
 
     private async prepareContext(user: User){
         if (user.context.START) return;
-        user.context.START = {step: OnboardingSteps.HELLO};
+        user.context.START = {step: OnboardingSteps.HELLO, words: {asked: false}};
     }
 
 
@@ -68,7 +68,12 @@ export class StartHandler implements HandlerInterface{
 
     private async handleWordsQuery(query: ExtendedCallbackQuery, user: User): Promise<boolean> {
         const answer = query.data;
+        if (user.context.START?.words.asked) {
+            user.context.START.step++;
+            return true;
+        }
         if (answer === '1') {
+            user.context.START!.words.asked = true;
             this.userService.goTo(user, Position.ADD_WORD);
             return true;
         } else if (answer === '0') {

@@ -20,7 +20,10 @@ export type MatchingContextData = {
 }
 
 export type StartContextData = {
-    step: OnboardingSteps
+    step: OnboardingSteps,
+    words: {
+        asked: boolean
+    }
 }
 
 export type ContextData<P extends Position> =
