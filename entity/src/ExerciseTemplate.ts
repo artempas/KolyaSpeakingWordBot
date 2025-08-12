@@ -61,9 +61,6 @@ export class ExerciseTemplate<EType extends ExerciseType, GType extends Generati
     @Column({nullable: true, type: 'varchar'})
     prompt: GType extends GenerationType.TEXT_LLM ? string : null;
 
-    @Column({nullable: true, type: 'json', array: true})
-    examples: GType extends GenerationType.TEXT_LLM ? z.infer<typeof ExerciseTemplate.SCHEMA_ZOD_MAP[EType]>[] : null;
-
     @Column({type: 'enum', enum: GenerationType, enumName: 'GenerationType', default: GenerationType.TEXT_LLM})
     generation_type: GType;
     
@@ -116,10 +113,8 @@ export class ExerciseTemplate<EType extends ExerciseType, GType extends Generati
 
     save(options?: SaveOptions): Promise<this> {
         if (this.generation_type === GenerationType.TEXT_LLM){
-            this.examples = this.examples?.map(obj => ExerciseTemplate.SCHEMA_ZOD_MAP[this.type].parse(obj)) as GType extends GenerationType.TEXT_LLM ? z.infer<typeof ExerciseTemplate.SCHEMA_ZOD_MAP[EType]>[] : null;
             if (!(
-                this.examples?.length
-                && this.prompt
+                this.prompt
                 && !this.question_source
                 && !this.answer_source
             )) throw new Error('Incorrect template configuration');

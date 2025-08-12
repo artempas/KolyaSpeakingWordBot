@@ -65,16 +65,18 @@ export class LlmService {
 
             if (response?.choices?.[0]?.message?.content) {
                 console.log('Responded with', response.choices);
-                let parsed;
+                let parsed: z.infer<T>;
                 try {
                     const jsonContent = JSON.parse(response.choices[0].message.content);
-                    parsed = schema.safeParse(jsonContent);
+                    parsed = schema.parse(jsonContent);
                 } catch (e) {
-                    parsed = { success: false };
+                    console.error(e);
+                    attempts++;
+                    continue;
                 }
-                if (parsed.success) return parsed.data;
+                return parsed;
             }
-            attempts++;
+            
         }
         return null;
     }
