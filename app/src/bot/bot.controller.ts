@@ -22,6 +22,7 @@ export class BotController {
         @Param('hashed_token') hashed_token: string,
         @Body() update: Update
     ){
+        console.log('New Update: ' + JSON.stringify(update));
         if (hashed_token !== this.bot.webhookSecret){
             throw new ForbiddenException();
         }

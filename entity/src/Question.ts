@@ -1,10 +1,9 @@
 import { BaseEntity, Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Word } from './Word';
 import { Exercise } from './Exercise';
-import { ExerciseType } from './enums';
 
 @Entity()
-export class Question extends BaseEntity{
+export class Question<ExerciseData extends Record<any, any> = Record<any, any>> extends BaseEntity{
 
     @PrimaryGeneratedColumn()
     id: number;
@@ -15,18 +14,6 @@ export class Question extends BaseEntity{
     @Column()
     word_id: number;
 
-    @Column()
-    text: string;
-
-    @Column({
-        type: 'text',
-        array: true
-    })
-    options: string[];
-
-    @Column()
-    correct_idx: number;
-
     @Column({nullable: true})
     is_correct?: boolean;
 
@@ -36,7 +23,7 @@ export class Question extends BaseEntity{
 
     @ManyToOne(() => Exercise, t => t.questions, {onDelete: 'CASCADE', onUpdate: 'CASCADE'})
     @JoinColumn({name: 'exercise_id', referencedColumnName: 'id'})
-    exercise: Exercise<ExerciseType>;
+    exercise: Exercise<ExerciseData>;
 
     @CreateDateColumn()
     created_at: Date;

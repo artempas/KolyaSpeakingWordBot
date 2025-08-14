@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
-import { ExerciseTemplate, ExerciseType, ReplaceableValues } from '@kolya-quizlet/entity';
 import { ChatCompletionMessageParam } from 'openai/resources/index';
 import z from 'zod';
 
@@ -17,11 +16,6 @@ export class LlmService {
         return this.current_agent === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini';
     }
 
-    private readonly SYSTEM_PROMPT =
-`Ты — интеллектуальный помощник, создающий эффективные и разнообразные задания для изучения и запоминания английских слов пользователями языкового приложения.
-Твоя цель — генерировать задания на английском языке, которые помогут пользователям лучше запомнить слово, его значение, произношение, правописание, контекст употребления и перевод.
-ОТВЕТ ВСЕГДА ДОЛЖЕН БЫТЬ В ФОРМАТЕ JSON`;
-
     private readonly __openai = new OpenAI();
 
     private readonly __deepseek = new OpenAI({
@@ -31,52 +25,52 @@ export class LlmService {
 
     constructor(){}
 
-    async getStructuredResponse<T extends typeof ExerciseTemplate.SCHEMA_ZOD_MAP[ExerciseType]>(
-        prompt: string,
-        schema: T,
-        variables: { [k in ReplaceableValues]: any }
-    ): Promise<z.infer<T>|null> {
-        const replacedPrompt = prompt.replace(/\$\{(\w+)\}/g, (_, key) => {
-            return JSON.stringify(variables[key as ReplaceableValues]) ?? '';
-        });
+    getStructuredResponse<T extends z.Schema>(
+        system: string,
+        user: string,
+        schema?: T,
+    ): Promise<z.infer<T>>
+
+    getStructuredResponse(system: string, user: string): Promise<string>
+
+    async getStructuredResponse<T extends z.Schema>(
+        system: string,
+        user: string,
+        schema?: T,
+    ): Promise<z.infer<T>|string> {
         let response: any = null;
         let attempts = 0;
         const maxAttempts = 3;
 
         while (attempts < maxAttempts) {
             const request:ChatCompletionMessageParam[] = [
-                { role: 'system', content: this.SYSTEM_PROMPT + '\n' + replacedPrompt },
-                {
-                    role: 'user',
-                    content: JSON.stringify({
-                        level: variables.level,
-                        words: variables.words
-                    })
-                }
+                { role: 'system', content: system },
+                { role: 'user', content: user }
             ];
             console.log('Waiting for openai response. request:', request);
             response = await this.agent.chat.completions.create({
                 model: this.model,
                 messages: request,
                 response_format: {
-                    type: 'json_object'
+                    type: schema ? 'json_object' : 'text'
                 }
             });
 
             if (response?.choices?.[0]?.message?.content) {
                 console.log('Responded with', response.choices);
-                let parsed: z.infer<T>;
-                try {
-                    const jsonContent = JSON.parse(response.choices[0].message.content);
-                    parsed = schema.parse(jsonContent);
-                } catch (e) {
-                    console.error(e);
-                    attempts++;
-                    continue;
-                }
-                return parsed;
+                if (schema){
+                    let parsed: z.infer<T>;
+                    try {
+                        const jsonContent = JSON.parse(response.choices[0].message.content);
+                        parsed = schema.parse(jsonContent);
+                    } catch (e) {
+                        console.error(e);
+                        attempts++;
+                        continue;
+                    }
+                    return parsed;
+                } else return response?.choices?.[0]?.message?.content;
             }
-            
         }
         return null;
     }

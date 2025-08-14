@@ -84,10 +84,7 @@ export class MatchingHandler implements HandlerInterface{
         let exercise = kwargs?.exercise;
         if (!exercise){
             try {
-                exercise = await this.exerciseService.getNextExercise(
-                    user,
-                    {type: [ExerciseType.MATCH] as const, id: user.context?.MATCHING?.current_exercise_id}
-                );
+                // TODO: request concrete generator;
             } catch (e: any){
                 if (e instanceof EntityNotFoundError){
                     if (e.entityClass === ExerciseTemplate){

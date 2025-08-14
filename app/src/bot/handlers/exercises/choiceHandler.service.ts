@@ -53,11 +53,7 @@ export class ChoiceHandler implements HandlerInterface{
             await this.bot.sendChatAction(user.telegram_id, 'typing');
             const typingInterval = setInterval(() => this.bot.sendChatAction(user.telegram_id, 'typing'), 5_000);
             try {
-                // TODO: refactor later so that next task is generated in exerciseHandler (to match template id)
-                exercise = await this.exerciseService.getNextExercise(
-                    user,
-                    {type: [ExerciseType.CHOICE, ExerciseType.CHOICES] as const}
-                );
+                // TODO: request concrete generator;
             } catch (e: any){
                 if (e instanceof EntityNotFoundError){
                     if (e.entityClass === ExerciseTemplate){

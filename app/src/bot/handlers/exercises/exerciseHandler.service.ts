@@ -85,7 +85,7 @@ export class ExerciseHandler implements HandlerInterface{
         await this.bot.sendMessage(user, 'Хм, сейчас что-нибудь придумаю (⊙﹏⊙)');
         let exercise: Exercise<ExerciseType>;
         try {
-            exercise = await this.exerciseService.getNextExercise(user, {template_id: id});
+            // TODO: request concrete generator;
         } catch (e: any){
             if (e instanceof EntityNotFoundError){
                 if (e.entityClass === ExerciseTemplate){

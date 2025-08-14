@@ -26,10 +26,10 @@ export enum OnboardingSteps {
 }
 
 export enum ExerciseType {
-    CHOICES = 'choices',
-    MATCH = 'match',
-    ANSWER = 'answer',
-    CHOICE = 'choice'
+    AI_TEXT = 'AI_TEXT',
+    MATCH_TRANSLATION = 'MATCH_TRANSLATION',
+    TRANSLATE_TO_FOREIGN = 'TRANSLATE_TO_FOREIGN',
+    TRANSLATE_TO_NATIVE = 'TRANSLATE_TO_NATIVE',
 }
 
 export enum ExerciseStatus {

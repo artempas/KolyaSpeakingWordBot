@@ -1,130 +1,70 @@
-import { ExerciseTemplate, ExerciseType, Exercise, Word, ExerciseStatus, User, Question, GenerationType, QuestionSource } from '@kolya-quizlet/entity';
+import { ExerciseType, Exercise, Word, ExerciseStatus, User, Question } from '@kolya-quizlet/entity';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LlmService } from 'llm/llm.service';
-import { Repository, Not, Brackets, EntityNotFoundError, IsNull, Any } from 'typeorm';
+import { Repository, Not, Any } from 'typeorm';
 import { ExerciseFromTypeArray } from './types';
+import { handlingMap } from './generators/generator.decorator';
+import { IGenerator } from './generators';
+import z from 'zod';
 
 @Injectable()
 export class ExercisesService {
     constructor(
         @Inject() private readonly llmService: LlmService,
 
-        @InjectRepository(ExerciseTemplate) private readonly exerciseTemplateRepo: Repository<ExerciseTemplate<ExerciseType, GenerationType>>,
-        @InjectRepository(Exercise) private readonly exerciseRepo: Repository<Exercise<ExerciseType>>,
-        @InjectRepository(Question) private readonly questionRepo: Repository<Question>,
+        @InjectRepository(Exercise) private readonly exerciseRepo: Repository<Exercise>,
         @InjectRepository(Word) private readonly wordRepo: Repository<Word>
     ){}
-
-    async getNextExercise<T extends ExerciseType[]>(
-        user: User,
-        options: {
-            type?: T,
-            template_id?: number,
-            id?: number
-        }
-    ): Promise<ExerciseFromTypeArray<T>> {
-        const {type, id, template_id} = options;
-        const existing_exercise = await this.exerciseRepo.findOne({
-            where: {id, user_id: user.id, status: Not(ExerciseStatus.ANSWERED), template: {id: template_id, type: type ? Any(type) : undefined}},
-            relations: {template: true, questions: {word: true}},
-            order: {created_at: 'asc'}
-        });
-        if (existing_exercise) return existing_exercise as ExerciseFromTypeArray<T>;
-        else return await this.generateExercise<T>(user, options);
-    }
 
     async generateExercise<T extends ExerciseType[]>(
         user: User,
         options: {
             type?: T,
-            template_id?: number
         }
-    ): Promise<ExerciseFromTypeArray<T>> {
+    ): Promise<Exercise> {
         const user_words_count = await this.wordRepo.count({where: {user_id: user.id}});
-        let template;
-        if (options.template_id)
-            template = await this.exerciseTemplateRepo.findOneByOrFail({id: options.template_id});
-        else
-            template = await this.pickTemplate(user, user_words_count, options.type);
 
-        const words = await this.pickWords(user, template.max_words, template.requires_translation);
+        const template = await this.pickExerciseType(user, user_words_count, options.type);
+
+        const handler = this.getHandler(template);
+
+        const words = await this.pickWords(user, handler.maxWords, handler.requires_translation);
 
         console.log('Picked words: ', words);
-        if (template.isLlmTemplate()){
 
-            const generatedTask = await this.llmService.getStructuredResponse(
-                template.prompt,
-                template.getSchema(),
-                {
-                    schema: template.getSchema(),
-                    words: words.map(w => ({word: w.word, id: w.id})),
-                    level: user.level
-                }
-            );
-            if (!generatedTask) throw new Error('Unable to generate task');
-
-            const questions = this.taskToQuestions(generatedTask, template, words);
-            if (!questions.length) throw new Error('No valid questions were generated for this task:(');
-
-            const newExercise = this.exerciseRepo.create({
-                user_id: user.id,
-                template: template,
-                generated: generatedTask,
-                status: ExerciseStatus.GENERATED,
-                questions
-            });
-            return await this.exerciseRepo.save(newExercise) as ExerciseFromTypeArray<T>;
-
-        } else {
-            if (template.isOfType(ExerciseType.MATCH)){
-                const generatedTask = template.getSchema();
-                const newExercise = new Exercise<ExerciseType.MATCH>();
-                newExercise.user_id = user.id;
-                newExercise.template = template;
-                newExercise.generated = {
-                    question: template.question_text,
-                    options: words.map(word => ({
-                        a: template.question_source === QuestionSource.TRANSLATION ? word.translation! : word.word,
-                        b: template.question_source === QuestionSource.TRANSLATION ? word.translation! : word.word,
-                        word_id: word.id
-                    }))
-                };
-                newExercise.status = ExerciseStatus.GENERATED;
-                newExercise.questions = words.map((w, idx) => this.questionRepo.create({
-                    word: w,
-                    options: [w.translation!],
-                    text: template.question_text,
-                    correct_idx: idx
-                }));
-                await newExercise.save({reload: true});
-                return await this.exerciseRepo.save(newExercise) as ExerciseFromTypeArray<T>;
-            } else throw new Error(`Not implemented manual task generation for type ${template.type}`);
-        }
-
+        return handler.generateExercise(user, words);
 
     }
 
-    private async pickTemplate(user: User, min_words: number, type?: ExerciseType[]){
-        const available_templates_q = this.exerciseTemplateRepo.createQueryBuilder('t')
-            .leftJoin(Exercise, 'e', 'e.template_id = t.id AND e.user_id = :user_id', {user_id: user.id})
-            .addSelect('COUNT(e.id)', 'inverseWeight')
-            .where('t.available_levels @> :user_level', {user_level: [user.level]})
-            .andWhere(
-                new Brackets((qb) =>
-                    qb.where('t.min_words <= :min_words', {min_words})
-                        .orWhere('t.min_words IS NULL'))
-            )
-            .groupBy('t.id');
-        if (type){
-            available_templates_q.andWhere('t.type = ANY(:type)', {type});
+    getHandler(template: ExerciseType): IGenerator<z.Schema> {
+        const HandlerClass = handlingMap.get(template);
+        for (const handler_instance in this){
+            if (HandlerClass && this[handler_instance] instanceof HandlerClass) return this[handler_instance];
         }
+        throw new Error(`No handler found for exercise type ${template}`);
+    }
 
-        const available_templates = await available_templates_q.getRawAndEntities();
+    private async pickExerciseType(user: User, min_words: number, type?: ExerciseType[]){
+        // Count how many exercises of each type the user has
+        let types_count_query = this.exerciseRepo.createQueryBuilder('e')
+            .select('e.type', 'type')
+            .addSelect('COUNT(*)', 'count')
+            .where('e.user_id = :user_id', { user_id: user.id })
+            .andWhere('e.created_at >= :last_month', { last_month: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) })
+            .groupBy('e.type');
+        if (type){
+            types_count_query = types_count_query.andWhere('e.type = :type', {type});
+        }
+        const types_count = await types_count_query.getRawMany<{type: ExerciseType, count: number}>();
 
-        if (!available_templates.entities.length) throw new EntityNotFoundError(ExerciseTemplate, {available_levels: user.level});
-
-        return this.randomPick(available_templates)[0];
+        const types_arr: {entities: ExerciseType[], raw: {inverseWeight: number}[]} = {entities: [], raw: []};
+        for (const [type, handler] of handlingMap){
+            if (handler.minWords > min_words) continue;
+            types_arr.entities.push(type);
+            types_arr.raw.push({inverseWeight: types_count.find(t => t.type === type)?.count ?? 0});
+        }
+        return this.randomPick(types_arr)[0];
     }
 
     private async pickWords(user: User, max_count: number, requires_translation: boolean){
@@ -164,71 +104,5 @@ export class ExercisesService {
             }
         }
         return Array.from(pickedIndices).map(i => elements[i]);
-    }
-
-    private taskToQuestions(generatedTask: any, template: ExerciseTemplate<ExerciseType, GenerationType.TEXT_LLM>, pickedWords: Word[]): Question[]{
-        if (template.isOfType(ExerciseType.CHOICE)){
-            const parsedTask = template.getSchema().parse(generatedTask);
-
-            const word = pickedWords.find(
-                word => word.word.toLowerCase() === generatedTask.options[generatedTask.correct_answer_index].toLowerCase()
-            );
-            return [this.questionRepo.create({
-                word: word,
-                options: parsedTask.options,
-                correct_idx: parsedTask.correct_index
-            })];
-
-        } else if (template.isOfType(ExerciseType.CHOICES)){
-            const parsedTask = template.getSchema().parse(generatedTask);
-            const result: Question[] = [];
-            for (const question of parsedTask.questions){
-                const word = pickedWords.find(
-                    w => w.id === question.word_id
-                );
-                if (word)
-                    result.push(this.questionRepo.create({
-                        text: question.question,
-                        word,
-                        options: question.options,
-                        correct_idx: question.correct_index
-                    }));
-                else {
-                    console.log(`Question about word "${question.options[question.correct_index]}" is discarded bcs no such word was given to AI. List of given words: ${pickedWords.map(w => w.word).join(',')}`);
-                }
-            }
-            return result;
-
-        } else {
-            throw Error('Unknown ExerciseType');
-        }
-    }
-
-    async handleAnswer(
-        question_id: number,
-        args: {is_correct?: boolean, option_idx?: number}
-    ): Promise<{finished: false, is_correct: boolean}|{finished: true, total: number, correct: number, is_correct: boolean}> {
-        const question = await this.questionRepo.findOneOrFail({ where: { id: question_id } });
-
-        if (args.is_correct !== undefined)
-            question.is_correct = args.is_correct;
-        else if (args.option_idx !== undefined){
-            question.is_correct = question.correct_idx === args.option_idx;
-        } else throw new Error('Either is_correct or option_idx must be defined');
-
-        await this.questionRepo.save(question);
-
-        const finished = !await this.questionRepo.exists({where: {exercise_id: question.exercise_id, is_correct: IsNull()}});
-
-        if (finished) {
-            await this.exerciseRepo.update({id: question.exercise_id}, {status: ExerciseStatus.ANSWERED});
-            return {
-                is_correct: question.is_correct,
-                finished: true,
-                total: await this.questionRepo.countBy({exercise_id: question.exercise_id}),
-                correct: await this.questionRepo.countBy({exercise_id: question.exercise_id, is_correct: true})
-            };
-        }
-        return {finished, is_correct: question.is_correct};
     }
 }

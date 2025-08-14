@@ -80,7 +80,7 @@ export class User extends BaseEntity {
     level: UserLevel;
 
     @OneToMany(() => Exercise, e => e.user)
-    exercises: Exercise<ExerciseType>[];
+    exercises: Exercise[];
 
     @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     created_at: Date;
