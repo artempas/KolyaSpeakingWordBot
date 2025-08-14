@@ -13,6 +13,7 @@ export class BotController {
         this.bot.on('message', this.handleMessage.bind(this));
         this.bot.on('callback_query', this.handleQuery.bind(this));
         this.bot.on('polling_error', (e) => console.error(e));
+        this.bot.on('webhook_error', (e) => console.error(e));
     }
 
     @Post('/:hashed_token')
