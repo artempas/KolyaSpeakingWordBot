@@ -4,15 +4,32 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Message, MessageDirection, User } from '@kolya-quizlet/entity';
 import { Repository } from 'typeorm';
+import { createHash } from 'crypto';
 
 
 @Injectable()
 export class BotService extends TelegramBot{
+
+    webhookSecret: string;
+
+
     constructor(
         @InjectRepository(Message) private readonly messageRepo: Repository<Message>,
         @InjectRepository(User) private readonly userRepo: Repository<User>
     ){
-        super(process.env.TELEGRAM_TOKEN!, {polling: true});
+        const token = process.env.TELEGRAM_TOKEN;
+        if (!token) throw new Error('Token is not defined');
+        
+        super(token, {polling: !process.env.BASE_URL});
+
+        this.webhookSecret = createHash('sha256').update(token).digest('hex').slice(0, 32);
+
+        if (process.env.BASE_URL){
+            // Use a hashed token for the webhook path to avoid exposing the full token
+            this.setWebHook(`${process.env.BASE_URL}/bot/${this.webhookSecret}`)
+                .then(() => console.log(`Webhook is set to ${process.env.BASE_URL}/bot/${this.webhookSecret}`))
+                .catch((err) => console.error('Failed to set webhook:', err));
+        }
     }
 
     async answerCallbackQueryIfNotAnswered(query: ExtendedCallbackQuery, options: Partial<TelegramBot.AnswerCallbackQueryOptions>): ReturnType<TelegramBot['answerCallbackQuery']>{
