@@ -93,7 +93,7 @@ export class SettingsHandler implements HandlerInterface{
             return true;
         }
 
-        async handleMessage(message: Message, user: User): Promise<boolean> {
+        async handleMessage(_message: Message, user: User): Promise<boolean> {
             await this.sendSettings(user);
             return false;
         }

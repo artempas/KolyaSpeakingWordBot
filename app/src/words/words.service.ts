@@ -48,7 +48,7 @@ export class WordsService extends WorkerHost{
 
     }
 
-    async process(job: Job<AddTranslationJob>, token?: string): Promise<any> {
+    async process(job: Job<AddTranslationJob>, _token?: string): Promise<any> {
 
         const word = await this.wordRepo.findOneBy({
             id: job.data.word_id

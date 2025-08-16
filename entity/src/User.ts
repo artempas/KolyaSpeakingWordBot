@@ -13,6 +13,14 @@ export type RemoveWordContextData = {
     page?: number,
 }
 
+export type AITextContextData = {
+    exercise_id: number
+};
+
+export type TranslateContextData = {
+    exercise_id?: number
+};
+
 export type MatchingContextData = {
     question_selected_id?: number,
     question_selected_idx?: number,
@@ -31,8 +39,11 @@ export type StartContextData = {
 export type ContextData<P extends Position> =
       P extends 'ADD_WORD' ? AddWordContextData
     : P extends 'REMOVE_WORD' ? RemoveWordContextData
-    : P extends 'MATCHING' ? MatchingContextData
+    : P extends 'MATCH_TRANSLATION' ? MatchingContextData
     : P extends 'START' ? StartContextData
+    : P extends 'AI_TEXT' ? AITextContextData
+    : P extends 'TRANSLATE_TO_FOREIGN' ? TranslateContextData
+    : P extends 'TRANSLATE_TO_NATIVE' ? TranslateContextData
     : Record<never, never>;
 
 @Entity()

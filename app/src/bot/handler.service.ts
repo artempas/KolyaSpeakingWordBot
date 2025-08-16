@@ -2,16 +2,18 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { CallbackQuery, Message as TelegramMessage, Metadata} from 'node-telegram-bot-api';
+import { CallbackQuery, Message as TelegramMessage} from 'node-telegram-bot-api';
 import {
     AddWordHandler,
     MatchingHandler,
     MenuHandler,
-    ChoiceHandler,
+    AITextHandler,
     RemoveWordHandler,
     SettingsHandler,
     StartHandler,
-    VocabularyHandler
+    VocabularyHandler,
+    TranslateToForeignHandler,
+    TranslateToNativeHandler
 } from './handlers';
 import { ExtendedCallbackQuery, ExtendedMessage } from './types';
 import { BotService } from './bot.service';
@@ -33,8 +35,10 @@ export class HandlerService {
         private readonly _removeWordHandler: RemoveWordHandler,
         private readonly _exerciseHandler: ExerciseHandler,
         private readonly _settingsHandler: SettingsHandler,
-        private readonly _multipleChoice: ChoiceHandler,
+        private readonly _multipleChoice: AITextHandler,
         private readonly _start: StartHandler,
+        private readonly _translateToForeign: TranslateToForeignHandler,
+        private readonly _translateToNative: TranslateToNativeHandler,
         private readonly _matching: MatchingHandler,
 
         @Inject() private readonly userService: UsersService,
@@ -45,7 +49,7 @@ export class HandlerService {
         private readonly messageRepository: Repository<Message>,
     ){}
 
-    async handleMessage(_message: TelegramMessage, metadata: Metadata){
+    async handleMessage(_message: TelegramMessage){
         const user = await this.upsertUser({
             telegram_id: _message.chat.id,
             username: _message.chat.username,

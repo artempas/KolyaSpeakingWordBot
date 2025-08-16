@@ -2,28 +2,38 @@ import { Inject, Injectable } from '@nestjs/common';
 import { CallbackQuery, Message } from 'node-telegram-bot-api';
 import { HandlerInterface } from '../interface';
 import { BotService } from '../../bot.service';
-import { Exercise, ExerciseTemplate, ExerciseType, GenerationType, Position, User } from '@kolya-quizlet/entity';
+import { Exercise, ExerciseType, Position, User } from '@kolya-quizlet/entity';
 import { UsersService } from 'users/users.service';
 import { PositionHandler } from '../../handler.decorator';
 import { ExercisesService } from 'exercises/exercises.service';
-import { ArrayContains, EntityNotFoundError, Repository } from 'typeorm';
-import { ChoiceHandler } from './choiceHandler.service';
+import { AITextHandler } from './aiText.service';
 import { ExtendedMessage } from 'bot/types';
-import { InjectRepository } from '@nestjs/typeorm';
 import { buildKeyboard } from 'bot/utils';
 import { MatchingHandler } from './matchingHandler.service';
+import { NoSuitableExerciseTypeFound } from 'exercises/exercise.exceptions';
+import { ExerciseHandlerInterface } from './interface';
+import { TranslateToForeignHandler } from './translateToForeign.service';
+import { TranslateToNativeHandler } from './translateToNative.service';
 
 
 @Injectable()
 @PositionHandler(Position.EXERCISE)
 export class ExerciseHandler implements HandlerInterface{
 
+    private typesHandlingMap: { [type in ExerciseType]: ExerciseHandlerInterface<any> } = {
+        [ExerciseType.AI_TEXT]: this.multipleChoiceHandler,
+        [ExerciseType.MATCH_TRANSLATION]: this.matchingHandler,
+        [ExerciseType.TRANSLATE_TO_FOREIGN]: this.translateToForeignHandler,
+        [ExerciseType.TRANSLATE_TO_NATIVE]: this.translateToNativeHandler
+    };
+
     constructor(
         @Inject() private readonly userService: UsersService,
         @Inject() private readonly exerciseService: ExercisesService,
-        @InjectRepository(ExerciseTemplate) private readonly exerciseTemplateRepo: Repository<ExerciseTemplate<ExerciseType, GenerationType>>,
-        private readonly multipleChoiceHandler: ChoiceHandler,
+        private readonly multipleChoiceHandler: AITextHandler,
         private readonly matchingHandler: MatchingHandler,
+        private readonly translateToForeignHandler: TranslateToForeignHandler,
+        private readonly translateToNativeHandler: TranslateToNativeHandler,
         private readonly bot: BotService
     ){}
 
@@ -40,7 +50,7 @@ export class ExerciseHandler implements HandlerInterface{
         default: {
             const parsed = this.parseQuery(query.data);
             if (parsed){
-                return await this.sendExercise(user, parsed.exerciseId);
+                return await this.sendExercise(user, parsed.exerciseType);
             }
             this.sendMenu(user);
             return false;
@@ -48,32 +58,25 @@ export class ExerciseHandler implements HandlerInterface{
         }
     }
 
-    private parseQuery(data: string|undefined): false|{exerciseId: number} {
+    private parseQuery(data: string|undefined): false|{exerciseType: ExerciseType} {
         if (!data) return false;
-        if (!/exerciseId:(\d+)/.test(data)) return false;
+        if (!Object.values(ExerciseType).some(type => data === `exerciseType:${type}`)) return false;
         const parsed = data.split(':')[1];
-        return {exerciseId: +parsed};
+        return {exerciseType: <ExerciseType>parsed};
     }
 
-    async handleMessage(message: ExtendedMessage, user: User): Promise<boolean> {
+    async handleMessage(_message: ExtendedMessage, user: User): Promise<boolean> {
         await this.sendMenu(user);
         return false;
     }
 
     private async sendMenu(user: User): Promise<Message>{
-        const template = await this.exerciseTemplateRepo.find({
-            where: {
-                available_levels: ArrayContains([user.level])
-            },
-            select: ['id', 'name'],
-            order: {name: 'desc'}
-        });
         return await this.bot.sendMessage(user.telegram_id, 'Выбери тип задания', {
             reply_markup: {
                 inline_keyboard: [
                     [{text: 'Случайное 🪄', callback_data: 'Случайное 🪄'}],
                     ...buildKeyboard(
-                        template.map(template_type => ({text: template_type.name, callback_data: `exerciseId:${template_type.id}`})),
+                        (await this.exerciseService.getSuitableExerciseTypes(user)).map(({type, handler}) => ({text: handler.display_name, callback_data: `exerciseType:${type}`})),
                         {columns: 2, back_button: {text: 'Назад 🔙', callback_data: 'Назад 🔙'}}
                     )
                 ]
@@ -81,35 +84,21 @@ export class ExerciseHandler implements HandlerInterface{
         });
     }
 
-    private async sendExercise(user: User, id?: number){
+    private async sendExercise(user: User, type?: ExerciseType){
         await this.bot.sendMessage(user, 'Хм, сейчас что-нибудь придумаю (⊙﹏⊙)');
-        let exercise: Exercise<ExerciseType>;
+        let exercise: Exercise<any>;
         try {
-            // TODO: request concrete generator;
+            exercise = await this.exerciseService.generateExercise(user, type ? {type: [type]} : undefined);
         } catch (e: any){
-            if (e instanceof EntityNotFoundError){
-                if (e.entityClass === ExerciseTemplate){
-                    await this.bot.sendMessage(user, 'Упс, кажется у нас нет пока заданий для вашего уровня языка. Приходите попозже, мы обязательно их добавим');
-                    this.userService.goBack(user);
-                    return true;
-                }
+            if (e instanceof NoSuitableExerciseTypeFound){
+                await this.bot.sendMessage(user, 'Упс, кажется у нас нет пока заданий для твоего уровня языка. Попробуй добавить слов или приходи попозже, мы обязательно их добавим');
+                this.userService.goBack(user);
+                return true;
             }
             throw e;
         }
-        if (exercise.isOfType(ExerciseType.CHOICE) || exercise.isOfType(ExerciseType.CHOICES)){
-            this.userService.goTo(user, Position.MULTIPLE_CHOICE);
-            return await this.multipleChoiceHandler.sendExercise(
-                user,
-                exercise
-            );
-        } else if (exercise.isOfType(ExerciseType.MATCH)){
-            this.userService.goTo(user, Position.MATCHING);
-            return await this.matchingHandler.sendExercise(
-                user,
-                {exercise}
-            );
-        } else {
-            throw new Error('Not implemented');
-        }
+
+        this.userService.goTo(user, exercise.type);
+        return this.typesHandlingMap[exercise.type].sendExercise(user, exercise as any);
     }
 }

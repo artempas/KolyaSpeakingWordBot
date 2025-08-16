@@ -1,7 +1,7 @@
 import { Body, Controller, ForbiddenException, HttpCode, Param, Post } from '@nestjs/common';
 import { HandlerService } from './handler.service';
 import { BotService } from './bot.service';
-import { CallbackQuery, Message, Metadata, Update } from 'node-telegram-bot-api';
+import { CallbackQuery, Message, Update } from 'node-telegram-bot-api';
 import TryCatchLogger from 'decorators/tryCatch.decorator';
 
 @Controller('bot')
@@ -32,10 +32,9 @@ export class BotController {
 
     @TryCatchLogger()
     handleMessage(
-        message: Message,
-        metadata: Metadata
+        message: Message
     ){
-        return this.botService.handleMessage(message, metadata);
+        return this.botService.handleMessage(message);
     }
 
     @TryCatchLogger()

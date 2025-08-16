@@ -1,14 +1,26 @@
 import z from 'zod';
 import { AbstractStaticGetter, IGenerator } from './interface';
-import { User, Word, ExerciseType, Exercise, Question, ExerciseStatus } from '@kolya-quizlet/entity';
+import { User, Word, ExerciseType, Exercise, Question, ExerciseStatus, UserLevel } from '@kolya-quizlet/entity';
 import { ExerciseGenerator } from './generator.decorator';
 import { Inject } from '@nestjs/common';
 import { LlmService } from 'llm/llm.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 
-@ExerciseGenerator(ExerciseType.AI_TEXT)
-export class AITextGenerationService extends AbstractStaticGetter implements IGenerator<AITextGenerationService['schema']>{
+const schema = z.object({
+    text: z.string().optional(),
+    questions: z.array(z.object({
+        question: z.string(),
+        correct_index: z.number(),
+        options: z.array(z.string()),
+        word_id: z.number()
+    }))
+});
+
+@ExerciseGenerator()
+export class AITextGenerationService
+    extends AbstractStaticGetter<ExerciseType.AI_TEXT, typeof schema>
+    implements IGenerator<ExerciseType.AI_TEXT, typeof schema> {
 
     static minWords = 5;
 
@@ -16,15 +28,13 @@ export class AITextGenerationService extends AbstractStaticGetter implements IGe
 
     static requires_translation = false;
 
-    schema = z.object({
-        text: z.string().optional(),
-        questions: z.array(z.object({
-            question: z.string(),
-            correct_index: z.number(),
-            options: z.array(z.string()),
-            word_id: z.number()
-        }))
-    });
+    static forType = ExerciseType.AI_TEXT;
+
+    static forLevel = [UserLevel.A1, UserLevel.B1, UserLevel.B2, UserLevel.C1, UserLevel.C2];
+
+    static display_name = '📃Вопросы по тексту';
+
+    static schema = schema;
 
     //     private prompt = `
     // Ты профессиональный репетитор по английскому языку.
@@ -166,10 +176,24 @@ REMINDER: For every MCQ, randomize the placement of the correct answer and match
     }
 
     async handleAnswer(
-        question_id: number,
+        search_options: {
+            exercise_id: number,
+            word_id: number,
+        } | {question_id: number},
         args: {is_correct?: boolean, option_idx?: number}
     ): Promise<{finished: false, is_correct: boolean}|{finished: true, total: number, correct: number, is_correct: boolean}> {
-        const question = await this.questionRepo.findOneOrFail({ where: { id: question_id }, relations: {exercise: true} });
+        let question;
+        if ('question_id' in search_options) {
+            question = await this.questionRepo.findOneOrFail({ where: { id: search_options.question_id }, relations: {exercise: true} });
+        } else {
+            question = await this.questionRepo.findOneOrFail({
+                where: {
+                    exercise_id: search_options.exercise_id,
+                    word_id: search_options.word_id
+                },
+                relations: {exercise: true}
+            });
+        }
 
         if (args.is_correct !== undefined)
             question.is_correct = args.is_correct;

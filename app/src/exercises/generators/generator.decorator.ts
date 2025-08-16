@@ -1,23 +1,25 @@
-import { ExerciseType } from '@kolya-quizlet/entity';
-import { IGenerator } from './interface';
+import { ExerciseType, UserLevel } from '@kolya-quizlet/entity';
 import z from 'zod';
 
-const handlingMap = new Map<ExerciseType, AbstractHandler>();
+export const generatorMap = new Map<ExerciseType, AbstractGenerator>();
 
-export interface AbstractHandler {
-    new(...args: any[]): IGenerator<z.Schema>;
+export interface AbstractGenerator<T extends ExerciseType = ExerciseType, Z extends z.Schema = z.Schema> {
+    new(...args: any[]): any;
+    schema: Z;
     minWords: number;
     maxWords: number;
     requires_translation: boolean;
+    forType: T;
+    forLevel: UserLevel[];
+    display_name: string;
 }
 
-export function ExerciseGenerator(type: ExerciseType) {
-    return <U extends AbstractHandler>(target: U) => {
-        if (handlingMap.get(type)){
-            throw new Error(`Duplicate exercise Generator(${target.name}) for type: ${type}`);
+export function ExerciseGenerator() {
+    return <U extends AbstractGenerator>(target: U) => {
+        if (generatorMap.get(target.forType)){
+            throw new Error(`Duplicate exercise Generator(${target.name}) for type: ${target.forType}`);
         }
-        handlingMap.set(type, target);
+        generatorMap.set(target.forType, target);
     };
 }
 
-export { handlingMap };

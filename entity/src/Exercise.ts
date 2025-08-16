@@ -26,7 +26,7 @@ export class Exercise<T extends Record<any, any> = Record<any, any>> extends Bas
     user: User;
 
     @OneToMany(() => Question, a => a.exercise, {cascade: true})
-    questions: Question[];
+    questions: Question<T>[];
 
     @CreateDateColumn()
     created_at: Date;

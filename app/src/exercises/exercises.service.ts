@@ -1,31 +1,57 @@
-import { ExerciseType, Exercise, Word, ExerciseStatus, User, Question } from '@kolya-quizlet/entity';
+import { ExerciseType, Exercise, Word, User, Question, ExerciseStatus } from '@kolya-quizlet/entity';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LlmService } from 'llm/llm.service';
-import { Repository, Not, Any } from 'typeorm';
-import { ExerciseFromTypeArray } from './types';
-import { handlingMap } from './generators/generator.decorator';
-import { IGenerator } from './generators';
+import { Any, Not, Repository } from 'typeorm';
+import { AITextGenerationService, GeneratorSchema, IGenerator, TranslateToForeignGenerationService, TranslateToNativeGenerationService, TranslationMatchGenerationService } from './generators';
 import z from 'zod';
+import { AbstractGenerator, generatorMap } from './generators/generator.decorator';
+import { NoSuitableExerciseTypeFound } from './exercise.exceptions';
+
+
+// Helper type to extract the schema output for a given ExerciseType
+type ExerciseSchemaOutput<T extends ExerciseType> = z.infer<GeneratorSchema<T>>;
 
 @Injectable()
 export class ExercisesService {
     constructor(
         @Inject() private readonly llmService: LlmService,
 
+        private readonly _ai: AITextGenerationService,
+        private readonly _match: TranslationMatchGenerationService,
+        private readonly _translate: TranslateToForeignGenerationService,
+        private readonly _translateNative: TranslateToNativeGenerationService,
+
+
         @InjectRepository(Exercise) private readonly exerciseRepo: Repository<Exercise>,
         @InjectRepository(Word) private readonly wordRepo: Repository<Word>
     ){}
 
+
     async generateExercise<T extends ExerciseType[]>(
         user: User,
-        options: {
+        options?: {
             type?: T,
         }
-    ): Promise<Exercise> {
+    ): Promise<Exercise<ExerciseSchemaOutput<T[number]>>> {
+
+        const existing_exercise = await this.exerciseRepo.findOne({
+            where: {
+                user_id: user.id,
+                status: Not(ExerciseStatus.ANSWERED),
+                type: options?.type ? Any(options.type) : undefined
+            },
+            relations: {
+                questions: true
+            },
+            order: { created_at: 'ASC' }
+        });
+
+        if (existing_exercise) return existing_exercise as Exercise<ExerciseSchemaOutput<T[number]>>;
+
         const user_words_count = await this.wordRepo.count({where: {user_id: user.id}});
 
-        const template = await this.pickExerciseType(user, user_words_count, options.type);
+        const template = await this.pickExerciseType(user, user_words_count, options?.type);
 
         const handler = this.getHandler(template);
 
@@ -37,15 +63,26 @@ export class ExercisesService {
 
     }
 
-    getHandler(template: ExerciseType): IGenerator<z.Schema> {
-        const HandlerClass = handlingMap.get(template);
-        for (const handler_instance in this){
-            if (HandlerClass && this[handler_instance] instanceof HandlerClass) return this[handler_instance];
+    getHandler<T extends ExerciseType>(template: T): IGenerator<T, GeneratorSchema<T>> {
+        for (const handler_instance of Object.values(this)) {
+            if (
+                handler_instance &&
+                typeof handler_instance === 'object' &&
+                'forType' in handler_instance &&
+                (handler_instance as any).forType === template
+            ) {
+                return handler_instance as IGenerator<T, GeneratorSchema<T>>;
+            }
         }
         throw new Error(`No handler found for exercise type ${template}`);
     }
 
-    private async pickExerciseType(user: User, min_words: number, type?: ExerciseType[]){
+    private pickExerciseType<T extends ExerciseType[]>(user: User, min_words: number, types: T|undefined)
+        : Promise<typeof types extends T ? T[number]: ExerciseType>
+
+    private pickExerciseType(user: User, min_words: number): Promise<ExerciseType>
+
+    private async pickExerciseType<T extends ExerciseType[]>(user: User, min_words: number, types?: T): Promise<ExerciseType> {
         // Count how many exercises of each type the user has
         let types_count_query = this.exerciseRepo.createQueryBuilder('e')
             .select('e.type', 'type')
@@ -53,18 +90,29 @@ export class ExercisesService {
             .where('e.user_id = :user_id', { user_id: user.id })
             .andWhere('e.created_at >= :last_month', { last_month: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) })
             .groupBy('e.type');
-        if (type){
-            types_count_query = types_count_query.andWhere('e.type = :type', {type});
+        if (types){
+            types_count_query = types_count_query.andWhere('e.type = ANY(:types)', {types});
         }
         const types_count = await types_count_query.getRawMany<{type: ExerciseType, count: number}>();
 
         const types_arr: {entities: ExerciseType[], raw: {inverseWeight: number}[]} = {entities: [], raw: []};
-        for (const [type, handler] of handlingMap){
-            if (handler.minWords > min_words) continue;
+
+        for (const {type} of await this.getSuitableExerciseTypes(user, min_words)) {
+            if (types && !types.includes(type)) continue; // Skip if type is not in the provided types)
             types_arr.entities.push(type);
             types_arr.raw.push({inverseWeight: types_count.find(t => t.type === type)?.count ?? 0});
         }
+
+        if (!types_arr.entities.length) throw new NoSuitableExerciseTypeFound('No suitable exercise type found');
         return this.randomPick(types_arr)[0];
+    }
+
+    async getSuitableExerciseTypes(user: User, _min_words?: number): Promise<{type: ExerciseType, handler: AbstractGenerator}[]> {
+        const min_words = _min_words ?? user.words?.length ?? await this.wordRepo.count({where: {user_id: user.id}});
+        return Array.from(generatorMap.entries())
+            .filter(([__, handler]) => handler.minWords <= min_words && handler.forLevel.includes(user.level))
+            .map(([type, handler]) => ({type, handler}));
+
     }
 
     private async pickWords(user: User, max_count: number, requires_translation: boolean){

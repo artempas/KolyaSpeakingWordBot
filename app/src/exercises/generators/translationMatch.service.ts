@@ -1,4 +1,4 @@
-import { Exercise, ExerciseStatus, ExerciseType, Question, User, Word } from '@kolya-quizlet/entity';
+import { Exercise, ExerciseStatus, ExerciseType, Question, User, UserLevel, Word } from '@kolya-quizlet/entity';
 import { Injectable } from '@nestjs/common';
 import z from 'zod';
 import { AbstractStaticGetter, IGenerator } from './interface';
@@ -6,9 +6,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { ExerciseGenerator } from './generator.decorator';
 
+const schema = z.object({
+    question: z.string(),
+    options: z.array(z.object({
+        a: z.string(),
+        b: z.string(),
+        word_id: z.number()
+    }))
+});
+
 @Injectable()
-@ExerciseGenerator(ExerciseType.MATCH_TRANSLATION)
-export class TranslationMatchGenerationService extends AbstractStaticGetter implements IGenerator<TranslationMatchGenerationService['schema']>{
+@ExerciseGenerator()
+export class TranslationMatchGenerationService extends
+    AbstractStaticGetter<ExerciseType.MATCH_TRANSLATION, typeof schema>
+    implements IGenerator<ExerciseType.MATCH_TRANSLATION, typeof schema>{
 
     private question_text = 'Сопоставь перевод со словом';
 
@@ -17,6 +28,14 @@ export class TranslationMatchGenerationService extends AbstractStaticGetter impl
     static maxWords = 7;
 
     static requires_translation = true;
+
+    static forType = ExerciseType.MATCH_TRANSLATION;
+
+    static schema = schema;
+
+    static forLevel = [UserLevel.A1, UserLevel.A2, UserLevel.B1, UserLevel.B2, UserLevel.C1, UserLevel.C2];
+
+    static display_name = '↔️Сопоставь перевод';
 
     constructor(
             @InjectRepository(Question) private questionRepo: Repository<Question>,
@@ -41,24 +60,30 @@ export class TranslationMatchGenerationService extends AbstractStaticGetter impl
         newExercise.status = ExerciseStatus.GENERATED;
         newExercise.questions = words.map((w) => ({
             word: w,
-        } as Question));
+        } as Question<z.infer<typeof schema>>));
         return newExercise.save({reload: true});
     }
 
-    schema = z.object({
-        question: z.string(),
-        options: z.array(z.object({
-            a: z.string(),
-            b: z.string(),
-            word_id: z.number()
-        }))
-    });
 
     async handleAnswer(
-        question_id: number,
+        search_options: {
+            exercise_id: number,
+            word_id: number,
+        } | {question_id: number},
         args: {is_correct?: boolean, option_idx?: number}
     ): Promise<{finished: false, is_correct: boolean}|{finished: true, total: number, correct: number, is_correct: boolean}> {
-        const question = await this.questionRepo.findOneOrFail({ where: { id: question_id }, relations: {exercise: true} });
+        let question;
+        if ('question_id' in search_options) {
+            question = await this.questionRepo.findOneOrFail({ where: { id: search_options.question_id }, relations: {exercise: true} });
+        } else {
+            question = await this.questionRepo.findOneOrFail({
+                where: {
+                    exercise_id: search_options.exercise_id,
+                    word_id: search_options.word_id
+                },
+                relations: {exercise: true}
+            });
+        }
 
         if (args.is_correct !== undefined)
             question.is_correct = args.is_correct;

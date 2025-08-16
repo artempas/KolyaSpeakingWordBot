@@ -19,7 +19,7 @@ export class BotService extends TelegramBot{
     ){
         const token = process.env.TELEGRAM_TOKEN;
         if (!token) throw new Error('Token is not defined');
-        
+
         super(token, {polling: !process.env.BASE_URL});
 
         this.webhookSecret = createHash('sha256').update(token).digest('hex').slice(0, 32);
@@ -34,7 +34,12 @@ export class BotService extends TelegramBot{
 
     async answerCallbackQueryIfNotAnswered(query: ExtendedCallbackQuery, options: Partial<TelegramBot.AnswerCallbackQueryOptions>): ReturnType<TelegramBot['answerCallbackQuery']>{
         if (query.is_answered) return false;
-        return await super.answerCallbackQuery(query.id, options);
+        try {
+            return await super.answerCallbackQuery(query.id, options);
+        } catch (error) {
+            console.error('Failed to answer callback query:', error);
+            return false;
+        }
     }
 
     async deleteMessageIfNotDeleted(message: ExtendedMessage): Promise<boolean> {

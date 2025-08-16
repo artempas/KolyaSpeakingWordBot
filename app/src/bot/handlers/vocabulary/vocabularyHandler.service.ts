@@ -46,7 +46,7 @@ export class VocabularyHandler implements HandlerInterface{
         }
     }
 
-    async handleMessage(message: ExtendedMessage, user: User): Promise<boolean> {
+    async handleMessage(_message: ExtendedMessage, user: User): Promise<boolean> {
         await this.sendMenu(user);
         return false;
     }

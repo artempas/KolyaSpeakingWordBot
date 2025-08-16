@@ -2,14 +2,27 @@ import { Module } from '@nestjs/common';
 import { ExercisesService } from './exercises.service';
 import { LlmModule } from 'llm/llm.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Exercise, ExerciseTemplate, Question, Word } from '@kolya-quizlet/entity';
+import { Exercise, Question, Word } from '@kolya-quizlet/entity';
+import { AITextGenerationService, TranslateToForeignGenerationService, TranslateToNativeGenerationService, TranslationMatchGenerationService } from './generators';
 
 @Module({
-    providers: [ExercisesService],
+    providers: [
+        ExercisesService,
+        AITextGenerationService,
+        TranslateToForeignGenerationService,
+        TranslateToNativeGenerationService,
+        TranslationMatchGenerationService
+    ],
     imports: [
         LlmModule,
-        TypeOrmModule.forFeature([ExerciseTemplate, Exercise, Word, Question])
+        TypeOrmModule.forFeature([Exercise, Word, Question])
     ],
-    exports: [ExercisesService]
+    exports: [
+        ExercisesService,
+        AITextGenerationService,
+        TranslateToForeignGenerationService,
+        TranslateToNativeGenerationService,
+        TranslationMatchGenerationService
+    ]
 })
 export class ExercisesModule {}

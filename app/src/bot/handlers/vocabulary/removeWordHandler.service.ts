@@ -130,7 +130,7 @@ export class RemoveWordHandler implements HandlerInterface{
         return true;
     }
 
-    async handleMessage(message: Message, user: User): Promise<boolean> {
+    async handleMessage(_message: Message, user: User): Promise<boolean> {
         if (!user.context.REMOVE_WORD) user.context.REMOVE_WORD = {};
         await this.sendPage(user);
         return false;

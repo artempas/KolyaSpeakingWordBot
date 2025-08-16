@@ -35,7 +35,7 @@ export class MenuHandler implements HandlerInterface{
         }
     }
 
-    async handleMessage(message: Message, user: User) {
+    async handleMessage(_message: Message, user: User) {
         await this.sendMenu(user);
         return false;
     }

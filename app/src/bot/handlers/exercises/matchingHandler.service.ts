@@ -2,16 +2,19 @@ import { Inject, Injectable } from '@nestjs/common';
 import { CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message } from 'node-telegram-bot-api';
 import { HandlerInterface } from '../interface';
 import { BotService } from '../../bot.service';
-import { Exercise, ExerciseStatus, ExerciseTemplate, ExerciseType, MatchingContextData, Position, User } from '@kolya-quizlet/entity';
+import { Exercise, ExerciseStatus, ExerciseType, MatchingContextData, Position, User } from '@kolya-quizlet/entity';
 import { UsersService } from 'users/users.service';
 import { PositionHandler } from '../../handler.decorator';
 import { ExercisesService } from 'exercises/exercises.service';
 import { EntityNotFoundError } from 'typeorm';
+import z from 'zod';
+import { TranslationMatchGenerationService } from 'exercises/generators';
+import { ExerciseHandlerInterface } from './interface';
 
 
 @Injectable()
-@PositionHandler(Position.MATCHING)
-export class MatchingHandler implements HandlerInterface{
+@PositionHandler(Position.MATCH_TRANSLATION)
+export class MatchingHandler implements HandlerInterface, ExerciseHandlerInterface<z.infer<TranslationMatchGenerationService['schema']>>{
 
     private readonly CORRECT_ANSWER_TEXT = '✅ Верно!';
 
@@ -20,6 +23,7 @@ export class MatchingHandler implements HandlerInterface{
     constructor(
         @Inject() private readonly userService: UsersService,
         @Inject() private readonly exerciseService: ExercisesService,
+        @Inject() private readonly translationMatchService: TranslationMatchGenerationService,
         private readonly bot: BotService
     ){}
 
@@ -48,62 +52,57 @@ export class MatchingHandler implements HandlerInterface{
     }
 
     private handleQuestionSelection(user: User, query: CallbackQuery, id: number, idx: number): boolean | PromiseLike<boolean> {
-        if (user.context.MATCHING?.question_selected_id !== id){
-            user.context.MATCHING!.question_selected_id = id;
-            user.context.MATCHING!.question_selected_idx = idx;
-            return this.sendExercise(user, {message_id: query.message?.message_id});
+        if (user.context.MATCH_TRANSLATION?.question_selected_id !== id){
+            user.context.MATCH_TRANSLATION!.question_selected_id = id;
+            user.context.MATCH_TRANSLATION!.question_selected_idx = idx;
+            return this.sendExercise(user, undefined, query.message?.message_id);
         }
         return false;
     }
 
     private handleOptionSelection(user: User, query: CallbackQuery, idx: number) {
-        if (user.context.MATCHING?.option_selected_idx !== idx){
-            user.context.MATCHING!.option_selected_idx = idx;
-            return this.sendExercise(user, {message_id: query.message?.message_id});
+        if (user.context.MATCH_TRANSLATION?.option_selected_idx !== idx){
+            user.context.MATCH_TRANSLATION!.option_selected_idx = idx;
+            return this.sendExercise(user, undefined, query.message?.message_id);
         }
         return false;
     }
 
-    async handleMessage(message: Message, user: User) {
+    async handleMessage(_message: Message, user: User) {
         await this.sendExercise(user);
         return false;
     }
 
-    private prepareContext(user: User, exercise: Exercise<ExerciseType.MATCH>){
-        if (!user.context.MATCHING) {
+    private prepareContext(user: User, exercise: Exercise){
+        if (!user.context.MATCH_TRANSLATION) {
             const length = exercise.questions.length;
             const shuffling_pattern = Array.from({length}, (_, i) => i).sort(() => Math.random() - 0.5);
-            user.context.MATCHING = {
+            user.context.MATCH_TRANSLATION = {
                 current_exercise_id: exercise.id,
                 shuffling_pattern,
             };
         }
     }
 
-    async sendExercise(user: User, kwargs?: {exercise?: Exercise<ExerciseType.MATCH>, message_id?:number}){
-        let exercise = kwargs?.exercise;
+    async sendExercise(user: User, exercise?: Exercise<z.infer<TranslationMatchGenerationService['schema']>>, message_id?:number){
         if (!exercise){
             try {
-                // TODO: request concrete generator;
+                exercise = await this.exerciseService.generateExercise(user, {type: [ExerciseType.MATCH_TRANSLATION]});
             } catch (e: any){
-                if (e instanceof EntityNotFoundError){
-                    if (e.entityClass === ExerciseTemplate){
-                        await this.bot.sendMessage(user, 'Упс, кажется у нас нет пока заданий такого типа для вашего уровня языка. Приходите попозже, мы обязательно их добавим');
-                        this.userService.goBack(user);
-                        return true;
-                    }
-                }
-                throw e;
+                console.error('Error generating exercise:', e);
+                await this.bot.sendMessage(user, 'Упс, кажется у нас возникла ошибка во время генерации задания. Попробуй ещё раз, если не получится, напиши нам в поддержку, мы быстро во всём разберёмся');
+                this.userService.goBack(user);
+                return true;
             }
         }
         this.prepareContext(user, exercise);
 
-        const message = this.exerciseToMessage(exercise, user.context.MATCHING!);
+        const message = this.exerciseToMessage(exercise, user.context.MATCH_TRANSLATION!);
 
-        if (kwargs?.message_id){
+        if (message_id){
             await this.bot.editMessageText(
                 message.text,
-                {reply_markup: message.options?.reply_markup, chat_id: user.telegram_id, message_id: kwargs.message_id}
+                {reply_markup: message.options?.reply_markup, chat_id: user.telegram_id, message_id}
             );
         } else
             await this.bot.sendMessage(user.telegram_id, message.text, message.options);
@@ -114,7 +113,7 @@ export class MatchingHandler implements HandlerInterface{
     }
 
     private exerciseToMessage(
-        exercise: Exercise<ExerciseType.MATCH>,
+        exercise: Exercise<z.infer<TranslationMatchGenerationService['schema']>>,
         context: MatchingContextData
     ): {text: string, options?: {reply_markup: InlineKeyboardMarkup}}{
         const keyboard: InlineKeyboardButton[][] = [];
@@ -134,9 +133,9 @@ export class MatchingHandler implements HandlerInterface{
             } else if (current_question.is_correct === false){
                 question_button = {text: this.INCORRECT_ANSWER_TEXT, callback_data: this.INCORRECT_ANSWER_TEXT};
             } else if (context.question_selected_id === current_question.id){
-                question_button = {text: '🔘' + current_question.word.word, callback_data: `qid:${current_question.id}:idx:${idx}`};
+                question_button = {text: '🔘' + question_option.a, callback_data: `qid:${current_question.id}:idx:${idx}`};
             } else {
-                question_button = {text: '⚪️' + current_question.word.word, callback_data: `qid:${current_question.id}:idx:${idx}`};
+                question_button = {text: '⚪️' + question_option.a, callback_data: `qid:${current_question.id}:idx:${idx}`};
             }
 
             const current_answer = exercise.questions.find(q => q.word_id === answer_option.word_id);
@@ -147,9 +146,9 @@ export class MatchingHandler implements HandlerInterface{
             // } else if (context.wrong[1].includes(idx)){
             //     option_button = {text: this.INCORRECT_ANSWER_TEXT, callback_data: this.INCORRECT_ANSWER_TEXT};
             } else if (context.option_selected_idx === idx) {
-                option_button = {text: '🔘' + current_answer.options[0], callback_data: `ans:${idx}`};
+                option_button = {text: '🔘' + answer_option.b, callback_data: `ans:${idx}`};
             } else {
-                option_button = {text: '⚪️' + current_answer.options[0], callback_data: `ans:${idx}`};
+                option_button = {text: '⚪️' + answer_option.b, callback_data: `ans:${idx}`};
             }
 
             keyboard.push([question_button, option_button]);
@@ -172,20 +171,20 @@ export class MatchingHandler implements HandlerInterface{
 
     private async handleAnswer(query: CallbackQuery, user: User): Promise<boolean> {
         if (
-            user.context.MATCHING?.question_selected_id === undefined
-            || user.context.MATCHING.option_selected_idx === undefined
-            || user.context.MATCHING?.question_selected_idx === undefined
+            user.context.MATCH_TRANSLATION?.question_selected_id === undefined
+            || user.context.MATCH_TRANSLATION.option_selected_idx === undefined
+            || user.context.MATCH_TRANSLATION?.question_selected_idx === undefined
         ){
             await this.bot.answerCallbackQuery(query.id, {text: 'Сначала надо выбрать по одному варианту слева и справа', show_alert: true});
             return false;
         }
         let finished;
         try {
-            const qSelectedIdx = user.context.MATCHING.question_selected_idx;
+            const qSelectedIdx = user.context.MATCH_TRANSLATION.option_selected_idx;
             const is_correct =
-                user.context.MATCHING.shuffling_pattern[qSelectedIdx] === user.context.MATCHING.option_selected_idx;
-            finished = await this.exerciseService.handleAnswer(
-                user.context.MATCHING.question_selected_id,
+                user.context.MATCH_TRANSLATION.shuffling_pattern[qSelectedIdx] === user.context.MATCH_TRANSLATION.question_selected_idx;
+            finished = await this.translationMatchService.handleAnswer(
+                {question_id: user.context.MATCH_TRANSLATION.question_selected_id},
                 {is_correct}
             );
         } catch (e: any){
@@ -204,8 +203,8 @@ export class MatchingHandler implements HandlerInterface{
             }
         }
 
-        delete user.context.MATCHING.option_selected_idx;
-        delete user.context.MATCHING.question_selected_id;
+        delete user.context.MATCH_TRANSLATION.option_selected_idx;
+        delete user.context.MATCH_TRANSLATION.question_selected_id;
 
         await this.bot.answerCallbackQuery(query.id, {
             text: finished.is_correct ? this.CORRECT_ANSWER_TEXT : this.INCORRECT_ANSWER_TEXT,
@@ -227,10 +226,10 @@ export class MatchingHandler implements HandlerInterface{
                     }
                 }
             );
-            delete user.context.MATCHING;
+            delete user.context.MATCH_TRANSLATION;
             return false;
         } else {
-            return await this.sendExercise(user, {message_id: query.message?.message_id});
+            return await this.sendExercise(user, undefined, query.message?.message_id);
         }
     }
 }

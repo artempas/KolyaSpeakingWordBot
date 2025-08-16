@@ -1,14 +1,22 @@
-export enum Position {
+enum BotPosition{
     START = 'START',
     MENU = 'MENU',
     VOCABULARY = 'VOCABULARY',
     ADD_WORD = 'ADD_WORD',
     REMOVE_WORD = 'REMOVE_WORD',
     EXERCISE = 'EXERCISE',
-    SETTINGS = 'SETTINGS',
-    MULTIPLE_CHOICE = 'MULTIPLE_CHOICE',
-    MATCHING = 'MATCHING'
+    SETTINGS = 'SETTINGS'
 }
+
+export enum ExerciseType {
+    AI_TEXT = 'AI_TEXT',
+    MATCH_TRANSLATION = 'MATCH_TRANSLATION',
+    TRANSLATE_TO_FOREIGN = 'TRANSLATE_TO_FOREIGN',
+    TRANSLATE_TO_NATIVE = 'TRANSLATE_TO_NATIVE',
+}
+
+export type Position = BotPosition | ExerciseType;
+export const Position = {...BotPosition, ...ExerciseType}
 
 export enum UserLevel {
     A1 = 'A1',
@@ -23,13 +31,6 @@ export enum OnboardingSteps {
     HELLO,
     ASK_LEVEL,
     ADD_WORDS
-}
-
-export enum ExerciseType {
-    AI_TEXT = 'AI_TEXT',
-    MATCH_TRANSLATION = 'MATCH_TRANSLATION',
-    TRANSLATE_TO_FOREIGN = 'TRANSLATE_TO_FOREIGN',
-    TRANSLATE_TO_NATIVE = 'TRANSLATE_TO_NATIVE',
 }
 
 export enum ExerciseStatus {
